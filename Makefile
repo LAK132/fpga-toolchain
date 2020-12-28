@@ -9,8 +9,9 @@ BBAEXPORT=$(NEXTPNR_PREFIX)/xilinx/python/bbaexport.py
 BBASM=$(NEXTPNR_PREFIX)/bbasm
 
 GHDL_PREFIX=$(SELFDIR)ghdl
+GHDL_BUILD=$(SELFDIR)build
 GHDL_MCODE=$(GHDL_PREFIX)/ghdl_mcode
-GHDL=$(GHDL_PREFIX)/ghdl/bin/ghdl
+GHDL=$(GHDL_PREFIX)/build/bin/ghdl
 
 GHDL_YOSYS_PLUGIN_PREFIX=$(SELFDIR)ghdl-yosys-plugin
 GHDL_YOSYS_PLUGIN=$(GHDL_YOSYS_PLUGIN_PREFIX)/ghdl.so
@@ -25,8 +26,8 @@ XRAYDBDIR=$(PRJXRAY_PREFIX)/database
 
 VIVADO_PREFIX=/opt/Xilinx
 
+all: $(GHDL_YOSYS_PLUGIN) $(NEXTPNR) $(XRAYDBDIR) $(PRJXRAY_PREFIX)/build $(XRAYDBDIR)
 .PHONY: all
-all: $(GHDL_YOSYS_PLUGIN) $(XRAYDBDIR) $(PRJXRAY_PREFIX)/build
 
 init:
 	git submodule update --init \
@@ -47,8 +48,11 @@ install_dependencies:
 
 # --- yosys ---
 
-$(YOSYS):
-	( cd $(YOSYS_PREFIX) && make config-gcc && make )
+$(YOSYS_PREFIX)/Makefile.conf:
+	( cd $(YOSYS_PREFIX) && make config-gcc && echo 'ENABLE_CCACHE := 1' >> Makefile.conf )
+
+$(YOSYS): $(YOSYS_PREFIX)/Makefile.conf
+	( cd $(YOSYS_PREFIX) && make )
 
 # --- prjxray ---
 
@@ -63,16 +67,22 @@ $(XRAYDBDIR):
 
 # --- nextpnr-xilinx ---
 
-$(NEXTPNR):
-	( cd $(NEXTPNR_PREFIX) && cmake -DARCH=xilinx . && make )
+$(NEXTPNR_PREFIX)/Makefile:
+	( cd $(NEXTPNR_PREFIX) && cmake -DARCH=xilinx . )
+
+$(NEXTPNR): $(NEXTPNR_PREFIX)/Makefile
+	( cd $(NEXTPNR_PREFIX) && make )
 
 $(BBAEXPORT): $(NEXTPNR)
 $(BBASM): $(NEXTPNR)
 
 # --- ghdl ---
 
-$(GHDL_MCODE):
-	( cd $(GHDL_PREFIX) && ./configure --prefix="$(GHDL_PREFIX)" && make OPT_FLAGS=-fPIC )
+$(GHDL_PREFIX)/Makefile: $(GHDL_PREFIX)/configure
+	( cd $(GHDL_PREFIX) && ./configure --prefix="$(GHDL_BUILD)" )
+
+$(GHDL_MCODE): $(GHDL_PREFIX)/Makefile
+	( cd $(GHDL_PREFIX) && make OPT_FLAGS=-fPIC )
 
 $(GHDL): $(GHDL_MCODE)
 	( cd $(GHDL_PREFIX) && make install )
@@ -81,3 +91,23 @@ $(GHDL): $(GHDL_MCODE)
 
 $(GHDL_YOSYS_PLUGIN): $(GHDL) $(YOSYS)
 	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && make GHDL="$(PWD)/$(GHDL)" YOSYS_CONFIG="$(PWD)/$(YOSYS_PREFIX)/yosys-config" CFLAGS="-I$(PWD)/$(YOSYS_PREFIX) -O" )
+
+# --- clean ---
+
+clean-ghdl:
+	( cd $(GHDL_PREFIX) && ( make clean ; rm Makefile ) || echo 'ghdl clean failed' )
+
+clean-ghdl-yosys:
+	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && make clean || echo 'ghdl-yosys clean failed' )
+
+clean-nextpnr:
+	( cd $(NEXTPNR_PREFIX) && make clean || echo 'nextpnr clean failed' )
+
+clean-prjxray:
+	( cd $(PRJXRAY_PREFIX) && ( make clean ; ( cd database && make reset ) ) || echo 'prjxray clean failed' )
+
+clean-yosys:
+	( cd $(YOSYS_PREFIX) && rm Makefile.conf || echo 'yosys clean failed' )
+	( cd $(YOSYS_PREFIX) && make clean || echo 'yosys clean failed' )
+
+clean: clean-ghdl clean-ghdl-yosys clean-yosys clean-nextpnr clean-prjxray
