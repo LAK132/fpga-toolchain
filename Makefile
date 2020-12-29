@@ -1,4 +1,4 @@
-SELFDIR := $(dir $(lastword $(MAKEFILE_LIST)))
+SELFDIR := $(PWD)/$(dir $(lastword $(MAKEFILE_LIST)))
 
 YOSYS_PREFIX=$(SELFDIR)yosys
 YOSYS=$(YOSYS_PREFIX)/yosys
@@ -9,7 +9,7 @@ BBAEXPORT=$(NEXTPNR_PREFIX)/xilinx/python/bbaexport.py
 BBASM=$(NEXTPNR_PREFIX)/bbasm
 
 GHDL_PREFIX=$(SELFDIR)ghdl
-GHDL_BUILD=$(SELFDIR)build
+GHDL_BUILD=$(GHDL_PREFIX)/build
 GHDL_MCODE=$(GHDL_PREFIX)/ghdl_mcode
 GHDL=$(GHDL_PREFIX)/build/bin/ghdl
 
@@ -90,12 +90,12 @@ $(GHDL): $(GHDL_MCODE)
 # --- ghdl-yosys-plugin ---
 
 $(GHDL_YOSYS_PLUGIN): $(GHDL) $(YOSYS)
-	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && make GHDL="$(PWD)/$(GHDL)" YOSYS_CONFIG="$(PWD)/$(YOSYS_PREFIX)/yosys-config" CFLAGS="-I$(PWD)/$(YOSYS_PREFIX) -O" )
+	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && make GHDL="$(GHDL)" YOSYS_CONFIG="$(YOSYS_PREFIX)/yosys-config" CFLAGS="-I$(YOSYS_PREFIX) -O" )
 
 # --- clean ---
 
 clean-ghdl:
-	( cd $(GHDL_PREFIX) && ( make clean ; rm Makefile ) || echo 'ghdl clean failed' )
+	( cd $(GHDL_PREFIX) && ( make clean ; git clean -xdf ) || echo 'ghdl clean failed' )
 
 clean-ghdl-yosys:
 	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && make clean || echo 'ghdl-yosys clean failed' )
@@ -107,7 +107,6 @@ clean-prjxray:
 	( cd $(PRJXRAY_PREFIX) && ( make clean ; ( cd database && make reset ) ) || echo 'prjxray clean failed' )
 
 clean-yosys:
-	( cd $(YOSYS_PREFIX) && rm Makefile.conf || echo 'yosys clean failed' )
-	( cd $(YOSYS_PREFIX) && make clean || echo 'yosys clean failed' )
+	( cd $(YOSYS_PREFIX) && ( make clean ; rm Makefile.conf ) || echo 'yosys clean failed' )
 
 clean: clean-ghdl clean-ghdl-yosys clean-yosys clean-nextpnr clean-prjxray
