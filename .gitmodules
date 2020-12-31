@@ -1,15 +1,20 @@
 [submodule "nextpnr-xilinx"]
 	path = nextpnr-xilinx
 	url = https://github.com/LAK132/nextpnr-xilinx
+	ignore = dirty
 [submodule "prjxray"]
 	path = prjxray
 	url = https://github.com/SymbiFlow/prjxray
+	ignore = dirty
 [submodule "yosys"]
 	path = yosys
 	url = https://github.com/YosysHQ/yosys
+	ignore = dirty
 [submodule "ghdl"]
 	path = ghdl
 	url = https://github.com/ghdl/ghdl
+	ignore = dirty
 [submodule "ghdl-yosys-plugin"]
 	path = ghdl-yosys-plugin
 	url = https://github.com/ghdl/ghdl-yosys-plugin
+	ignore = dirty
