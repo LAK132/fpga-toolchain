@@ -11,12 +11,15 @@ BBASM=$(NEXTPNR_PREFIX)/bbasm
 GHDL_PREFIX=$(SELFDIR)ghdl
 GHDL_BUILD=$(GHDL_PREFIX)/build
 GHDL_MCODE=$(GHDL_PREFIX)/ghdl_mcode
-GHDL=$(GHDL_PREFIX)/build/bin/ghdl
+GHDL_BIN=$(GHDL_BUILD)/bin
+GHDL_LIB=$(GHDL_BUILD)/lib
+GHDL=$(GHDL_BIN)/ghdl
 
 GHDL_YOSYS_PLUGIN_PREFIX=$(SELFDIR)ghdl-yosys-plugin
 GHDL_YOSYS_PLUGIN=$(GHDL_YOSYS_PLUGIN_PREFIX)/ghdl.so
 
 GHDL_YOSYS=$(YOSYS) -m $(GHDL_YOSYS_PLUGIN)
+GHDL_YOSYS_DEPEND=$(YOSYS) $(GHDL_YOSYS_PLUGIN)
 
 PRJXRAY_PREFIX=$(SELFDIR)prjxray
 XRAYENV=$(PRJXRAY_PREFIX)/utils/environment.sh
@@ -26,13 +29,8 @@ XRAYDBDIR=$(PRJXRAY_PREFIX)/database
 
 VIVADO_PREFIX=/opt/Xilinx
 
-all: $(GHDL_YOSYS_PLUGIN) $(NEXTPNR) $(XRAYDBDIR) $(PRJXRAY_PREFIX)/build $(XRAYDBDIR)
+all: $(GHDL_YOSYS_DEPEND) $(NEXTPNR) $(XRAYDBDIR)
 .PHONY: all
-
-init:
-	git submodule update --init \
-	&& ( cd $(PRJXRAY_PREFIX) && git submodule update --init --recursive ) \
-	&& ( cd $(NEXTPNR_PREFIX) && git submodule update --init )
 
 install_dependencies:
 	apt install build-essential clang bison flex libreadline-dev gawk tcl-dev \
@@ -48,7 +46,10 @@ install_dependencies:
 
 # --- yosys ---
 
-$(YOSYS_PREFIX)/Makefile.conf:
+$(YOSYS_PREFIX)/Makefile:
+	git submodule update --init $(YOSYS_PREFIX)
+
+$(YOSYS_PREFIX)/Makefile.conf: $(YOSYS_PREFIX)/Makefile
 	( cd $(YOSYS_PREFIX) && make config-gcc && echo 'ENABLE_CCACHE := 1' >> Makefile.conf )
 
 $(YOSYS): $(YOSYS_PREFIX)/Makefile.conf
@@ -56,18 +57,26 @@ $(YOSYS): $(YOSYS_PREFIX)/Makefile.conf
 
 # --- prjxray ---
 
-$(PRJXRAY_PREFIX)/build:
+$(PRJXRAY_PREFIX)/Makefile:
+	git submodule update --init $(PRJXRAY_PREFIX) && \
+	( cd $(PRJXRAY_PREFIX) && git submodule update --init --recursive )
+
+$(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
 	( cd $(PRJXRAY_PREFIX) && make build && make env )
 
 $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build
 $(XC7FRAMES2BIT): $(PRJXRAY_PREFIX)/build
 
-$(XRAYDBDIR):
+$(XRAYDBDIR): $(PRJXRAY_PREFIX)/Makefile
 	( cd $(PRJXRAY_PREFIX) && ./download-latest-db.sh )
 
 # --- nextpnr-xilinx ---
 
-$(NEXTPNR_PREFIX)/Makefile:
+$(NEXTPNR_PREFIX)/CMakeLists.txt:
+	git submodule update --init $(NEXTPNR_PREFIX) && \
+	( cd $(NEXTPNR_PREFIX) && git submodule update --init )
+
+$(NEXTPNR_PREFIX)/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt
 	( cd $(NEXTPNR_PREFIX) && cmake -DARCH=xilinx . )
 
 $(NEXTPNR): $(NEXTPNR_PREFIX)/Makefile
@@ -77,6 +86,9 @@ $(BBAEXPORT): $(NEXTPNR)
 $(BBASM): $(NEXTPNR)
 
 # --- ghdl ---
+
+$(GHDL_PREFIX)/configure:
+	git submodule update --init $(GHDL_PREFIX)
 
 $(GHDL_PREFIX)/Makefile: $(GHDL_PREFIX)/configure
 	( cd $(GHDL_PREFIX) && ./configure --prefix="$(GHDL_BUILD)" )
@@ -89,7 +101,10 @@ $(GHDL): $(GHDL_MCODE)
 
 # --- ghdl-yosys-plugin ---
 
-$(GHDL_YOSYS_PLUGIN): $(GHDL) $(YOSYS)
+$(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile:
+	git submodule update --init $(GHDL_YOSYS_PLUGIN_PREFIX)
+
+$(GHDL_YOSYS_PLUGIN): $(GHDL) $(YOSYS) $(GHDL_YOSYS_PLUGIN)/Makefile
 	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && make GHDL="$(GHDL)" YOSYS_CONFIG="$(YOSYS_PREFIX)/yosys-config" CFLAGS="-I$(YOSYS_PREFIX) -O" )
 
 # --- clean ---
