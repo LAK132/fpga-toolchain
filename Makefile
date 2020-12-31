@@ -109,6 +109,14 @@ $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile:
 $(GHDL_YOSYS_PLUGIN): $(GHDL) $(YOSYS) $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile
 	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && make GHDL="$(GHDL)" YOSYS_CONFIG="$(YOSYS_PREFIX)/yosys-config" CFLAGS="-I$(YOSYS_PREFIX) -O" )
 
+# --- bug repro ---
+
+ghdl-error: ghdl-error.vhdl $(GHDL_YOSYS_DEPEND)
+	$(GHDL_YOSYS) -p "ghdl $< -e bug"
+
+ghdl-ok: ghdl-ok.vhdl $(GHDL_YOSYS_DEPEND)
+	$(GHDL_YOSYS) -p "ghdl $< -e bug"
+
 # --- clean ---
 
 clean-ghdl:
