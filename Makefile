@@ -47,7 +47,7 @@ install_dependencies:
 # --- yosys ---
 
 $(YOSYS_PREFIX)/Makefile:
-	git submodule update --init $(YOSYS_PREFIX)
+	( cd $(SELFDIR) && git submodule update --init $(YOSYS_PREFIX) )
 
 $(YOSYS_PREFIX)/Makefile.conf: $(YOSYS_PREFIX)/Makefile
 	( cd $(YOSYS_PREFIX) && make config-gcc && echo 'ENABLE_CCACHE := 1' >> Makefile.conf )
@@ -58,7 +58,7 @@ $(YOSYS): $(YOSYS_PREFIX)/Makefile.conf
 # --- prjxray ---
 
 $(PRJXRAY_PREFIX)/Makefile:
-	git submodule update --init $(PRJXRAY_PREFIX) && \
+	( cd $(SELFDIR) && git submodule update --init $(PRJXRAY_PREFIX) ) && \
 	( cd $(PRJXRAY_PREFIX) && git submodule update --init --recursive )
 
 $(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
@@ -67,13 +67,15 @@ $(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
 $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build
 $(XC7FRAMES2BIT): $(PRJXRAY_PREFIX)/build
 
-$(XRAYDBDIR): $(PRJXRAY_PREFIX)/Makefile
+# To depend on this correctly, you must depend on $(XRAYDBDIR)/<FAMILY>/<PART>
+# example: $(XRAYDBDIR)/artix7/xc7a100tcsg324-1
+$(XRAYDBDIR)/%: $(PRJXRAY_PREFIX)/Makefile
 	( cd $(PRJXRAY_PREFIX) && ./download-latest-db.sh )
 
 # --- nextpnr-xilinx ---
 
 $(NEXTPNR_PREFIX)/CMakeLists.txt:
-	git submodule update --init $(NEXTPNR_PREFIX) && \
+	( cd $(SELFDIR) && git submodule update --init $(NEXTPNR_PREFIX) ) && \
 	( cd $(NEXTPNR_PREFIX) && git submodule update --init )
 
 $(NEXTPNR_PREFIX)/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt
@@ -88,7 +90,7 @@ $(BBASM): $(NEXTPNR)
 # --- ghdl ---
 
 $(GHDL_PREFIX)/configure:
-	git submodule update --init $(GHDL_PREFIX)
+	( cd $(SELFDIR) && git submodule update --init $(GHDL_PREFIX) )
 
 $(GHDL_PREFIX)/Makefile: $(GHDL_PREFIX)/configure
 	( cd $(GHDL_PREFIX) && ./configure --prefix="$(GHDL_BUILD)" )
@@ -102,9 +104,9 @@ $(GHDL): $(GHDL_MCODE)
 # --- ghdl-yosys-plugin ---
 
 $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile:
-	git submodule update --init $(GHDL_YOSYS_PLUGIN_PREFIX)
+	( cd $(SELFDIR) && git submodule update --init $(GHDL_YOSYS_PLUGIN_PREFIX) )
 
-$(GHDL_YOSYS_PLUGIN): $(GHDL) $(YOSYS) $(GHDL_YOSYS_PLUGIN)/Makefile
+$(GHDL_YOSYS_PLUGIN): $(GHDL) $(YOSYS) $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile
 	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && make GHDL="$(GHDL)" YOSYS_CONFIG="$(YOSYS_PREFIX)/yosys-config" CFLAGS="-I$(YOSYS_PREFIX) -O" )
 
 # --- clean ---
