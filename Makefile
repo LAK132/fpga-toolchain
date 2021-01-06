@@ -69,6 +69,7 @@ $(XC7FRAMES2BIT): $(PRJXRAY_PREFIX)/build
 
 # To depend on this correctly, you must depend on $(XRAYDBDIR)/<FAMILY>/<PART>
 # example: $(XRAYDBDIR)/artix7/xc7a100tcsg324-1
+.PRECIOUS: $(XRAYDBDIR)/%
 $(XRAYDBDIR)/%: $(PRJXRAY_PREFIX)/Makefile
 	( cd $(PRJXRAY_PREFIX) && ./download-latest-db.sh )
 
