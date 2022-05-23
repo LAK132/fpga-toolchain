@@ -1,10 +1,10 @@
 [submodule "nextpnr-xilinx"]
 	path = nextpnr-xilinx
-	url = https://github.com/LAK132/nextpnr-xilinx
+	url = https://github.com/gatecat/nextpnr-xilinx
 	ignore = dirty
 [submodule "prjxray"]
 	path = prjxray
-	url = https://github.com/SymbiFlow/prjxray
+	url = https://github.com/LAK132/prjxray
 	ignore = dirty
 [submodule "yosys"]
 	path = yosys

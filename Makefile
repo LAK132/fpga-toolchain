@@ -1,28 +1,32 @@
-SELFDIR := $(PWD)/$(dir $(lastword $(MAKEFILE_LIST)))
+ifeq ($(dir $(lastword $(MAKEFILE_LIST))),./)
+SELFDIR := $(abspath $(PWD))
+else
+SELFDIR := $(abspath $(PWD)/$(dir $(lastword $(MAKEFILE_LIST))))
+endif
 
-YOSYS_PREFIX=$(SELFDIR)yosys
+YOSYS_PREFIX=$(SELFDIR)/yosys
 YOSYS=$(YOSYS_PREFIX)/yosys
 
-NEXTPNR_PREFIX=$(SELFDIR)nextpnr-xilinx
+NEXTPNR_PREFIX=$(SELFDIR)/nextpnr-xilinx
 NEXTPNR=$(NEXTPNR_PREFIX)/nextpnr-xilinx
 BBAEXPORT=$(NEXTPNR_PREFIX)/xilinx/python/bbaexport.py
 BBASM=$(NEXTPNR_PREFIX)/bbasm
 
-GHDL_PREFIX=$(SELFDIR)ghdl
+GHDL_PREFIX=$(SELFDIR)/ghdl
 GHDL_BUILD=$(GHDL_PREFIX)/build
 GHDL_MCODE=$(GHDL_PREFIX)/ghdl_mcode
 GHDL_BIN=$(GHDL_BUILD)/bin
 GHDL_LIB=$(GHDL_BUILD)/lib
 GHDL=$(GHDL_BIN)/ghdl
 
-GHDL_YOSYS_PLUGIN_PREFIX=$(SELFDIR)ghdl-yosys-plugin
+GHDL_YOSYS_PLUGIN_PREFIX=$(SELFDIR)/ghdl-yosys-plugin
 GHDL_YOSYS_PLUGIN=$(GHDL_YOSYS_PLUGIN_PREFIX)/ghdl.so
 
 GHDL_YOSYS=$(YOSYS) -m $(GHDL_YOSYS_PLUGIN)
 GHDL_YOSYS_DEPEND=$(YOSYS) $(GHDL_YOSYS_PLUGIN)
 
-PRJXRAY_PREFIX=$(SELFDIR)prjxray
-XRAYENV=$(PRJXRAY_PREFIX)/utils/environment.sh
+PRJXRAY_PREFIX=$(SELFDIR)/prjxray
+XRAYENV=$(SELFDIR)/prjxray_env.sh
 FASM2FRAMES=$(PRJXRAY_PREFIX)/utils/fasm2frames.py
 XC7FRAMES2BIT=$(PRJXRAY_PREFIX)/build/tools/xc7frames2bit
 XRAYDBDIR=$(PRJXRAY_PREFIX)/database
@@ -38,7 +42,7 @@ install_dependencies:
 	python3 python3-pip python3-yaml python3-venv python3-virtualenv \
 	libboost-system-dev libboost-python-dev libboost-filesystem-dev \
 	libboost-thread-dev libboost-program-options-dev libboost-iostreams-dev \
-	zlib1g-dev qtbase5-dev libqt5gui5 libeigen3-dev
+	zlib1g-dev qtbase5-dev libqt5gui5 libeigen3-dev ccache
 
 # if you get `nextpnr-xilinx: error while loading shared libraries: libQt5Core.so.5: cannot open shared object file: No such file or directory`
 # try running `sudo strip --remove-section=.note.ABI-tag /usr/lib/x86_64-linux-gnu/libQt5Core.so.5`
@@ -52,7 +56,7 @@ $(YOSYS_PREFIX)/Makefile:
 $(YOSYS_PREFIX)/Makefile.conf: $(YOSYS_PREFIX)/Makefile
 	( cd $(YOSYS_PREFIX) && make config-gcc && echo 'ENABLE_CCACHE := 1' >> Makefile.conf )
 
-$(YOSYS): $(YOSYS_PREFIX)/Makefile.conf
+force-yosys $(YOSYS): $(YOSYS_PREFIX)/Makefile.conf
 	( cd $(YOSYS_PREFIX) && make )
 
 # --- prjxray ---
@@ -61,11 +65,14 @@ $(PRJXRAY_PREFIX)/Makefile:
 	( cd $(SELFDIR) && git submodule update --init $(PRJXRAY_PREFIX) ) && \
 	( cd $(PRJXRAY_PREFIX) && git submodule update --init --recursive )
 
-$(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
+force-prjxray $(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
 	( cd $(PRJXRAY_PREFIX) && make build && make env )
 
 $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build
 $(XC7FRAMES2BIT): $(PRJXRAY_PREFIX)/build
+
+$(XRAYENV): $(SELFDIR)/prjxray_settings.sh Makefile
+	@echo "export XRAY_VIVADO_SETTINGS=$<;source $(PRJXRAY_PREFIX)/utils/environment.sh" > $@ && chmod +x $@
 
 # To depend on this correctly, you must depend on $(XRAYDBDIR)/<FAMILY>/<PART>
 # example: $(XRAYDBDIR)/artix7/xc7a100tcsg324-1
@@ -82,7 +89,7 @@ $(NEXTPNR_PREFIX)/CMakeLists.txt:
 $(NEXTPNR_PREFIX)/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt
 	( cd $(NEXTPNR_PREFIX) && cmake -DARCH=xilinx . )
 
-$(NEXTPNR): $(NEXTPNR_PREFIX)/Makefile
+force-nextpnr $(NEXTPNR): $(NEXTPNR_PREFIX)/Makefile
 	( cd $(NEXTPNR_PREFIX) && make )
 
 $(BBAEXPORT): $(NEXTPNR)
@@ -99,7 +106,7 @@ $(GHDL_PREFIX)/Makefile: $(GHDL_PREFIX)/configure
 $(GHDL_MCODE): $(GHDL_PREFIX)/Makefile
 	( cd $(GHDL_PREFIX) && make OPT_FLAGS=-fPIC )
 
-$(GHDL): $(GHDL_MCODE)
+force-ghdl $(GHDL): $(GHDL_MCODE)
 	( cd $(GHDL_PREFIX) && make install )
 
 # --- ghdl-yosys-plugin ---
@@ -107,7 +114,7 @@ $(GHDL): $(GHDL_MCODE)
 $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile:
 	( cd $(SELFDIR) && git submodule update --init $(GHDL_YOSYS_PLUGIN_PREFIX) )
 
-$(GHDL_YOSYS_PLUGIN): $(GHDL) $(YOSYS) $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile
+force-ghdl-yosys $(GHDL_YOSYS_PLUGIN): $(GHDL) $(YOSYS) $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile
 	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && make GHDL="$(GHDL)" YOSYS_CONFIG="$(YOSYS_PREFIX)/yosys-config" CFLAGS="-I$(YOSYS_PREFIX) -O" )
 
 # --- clean ---
@@ -128,3 +135,4 @@ clean-yosys:
 	( cd $(YOSYS_PREFIX) && ( make clean ; rm Makefile.conf ) || echo 'yosys clean failed' )
 
 clean: clean-ghdl clean-ghdl-yosys clean-yosys clean-nextpnr clean-prjxray
+	rm -rf prjxray_env.sh
