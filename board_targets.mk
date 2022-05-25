@@ -31,7 +31,7 @@ $(foreach B,$(ALL_BOARDS),$(eval $(call SHARED_BOARD_BUILDER,$B)))
 
 XILINX_BIN_DIR=$(BIN_DIR)/xilinx
 $(XILINX_BIN_DIR):
-	mkdir -p $$@
+	mkdir -p $@
 
 .PRECIOUS: $(XILINX_BIN_DIR)/%.bba $(XILINX_BIN_DIR)/%.bin $(XILINX_BIN_DIR)/%.json $(XILINX_BIN_DIR)/%.fasm $(XILINX_BIN_DIR)/%.frames $(XILINX_BIN_DIR)/%.bit
 
