@@ -33,7 +33,8 @@ XRAYDBDIR=$(PRJXRAY_PREFIX)/database
 
 VIVADO_PREFIX=/opt/Xilinx
 
-all: $(GHDL_YOSYS_DEPEND) $(NEXTPNR_XILINX) $(XRAYDBDIR)
+all: $(GHDL_YOSYS_DEPEND) $(NEXTPNR_XILINX) $(XRAYDBDIR) $(XC7FRAMES2BIT)
+submodules: yosys-submodule prjxray-submodule nextpnr-xilinx-submodule ghdl-submodule ghdl-yosys-submodule
 .PHONY: all
 
 install_dependencies:
@@ -50,23 +51,25 @@ install_dependencies:
 
 # --- yosys ---
 
+yosys-submodule: $(YOSYS_PREFIX)/Makefile
 $(YOSYS_PREFIX)/Makefile:
 	( cd $(SELFDIR) && git submodule update --init $(YOSYS_PREFIX) )
 
 $(YOSYS_PREFIX)/Makefile.conf: $(YOSYS_PREFIX)/Makefile
-	( cd $(YOSYS_PREFIX) && make config-gcc && echo 'ENABLE_CCACHE := 1' >> Makefile.conf )
+	( cd $(YOSYS_PREFIX) && $(MAKE) config-gcc && echo 'ENABLE_CCACHE := 1' >> Makefile.conf )
 
 force-yosys $(YOSYS): $(YOSYS_PREFIX)/Makefile.conf
-	( cd $(YOSYS_PREFIX) && make )
+	( cd $(YOSYS_PREFIX) && $(MAKE) )
 
 # --- prjxray ---
 
+prjxray-submodule: $(PRJXRAY_PREFIX)/Makefile
 $(PRJXRAY_PREFIX)/Makefile:
 	( cd $(SELFDIR) && git submodule update --init $(PRJXRAY_PREFIX) ) && \
 	( cd $(PRJXRAY_PREFIX) && git submodule update --init --recursive )
 
 force-prjxray $(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
-	( cd $(PRJXRAY_PREFIX) && make build && make env )
+	( cd $(PRJXRAY_PREFIX) && $(MAKE) build && $(MAKE) env )
 
 $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build
 $(XC7FRAMES2BIT): $(PRJXRAY_PREFIX)/build
@@ -83,6 +86,7 @@ $(XRAYDBDIR)/%: $(PRJXRAY_PREFIX)/Makefile
 
 # --- nextpnr-xilinx ---
 
+nextpnr-xilinx-submodule: $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt
 $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt:
 	( cd $(SELFDIR) && git submodule update --init $(NEXTPNR_XILINX_PREFIX) ) && \
 	( cd $(NEXTPNR_XILINX_PREFIX) && git submodule update --init )
@@ -91,13 +95,14 @@ $(NEXTPNR_XILINX_PREFIX)/Makefile: $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt
 	( cd $(NEXTPNR_XILINX_PREFIX) && cmake -DARCH=xilinx . )
 
 force-nextpnr-xilinx $(NEXTPNR_XILINX): $(NEXTPNR_XILINX_PREFIX)/Makefile
-	( cd $(NEXTPNR_XILINX_PREFIX) && make )
+	( cd $(NEXTPNR_XILINX_PREFIX) && $(MAKE) )
 
 $(BBAEXPORT): $(NEXTPNR_XILINX)
 $(BBASM): $(NEXTPNR_XILINX)
 
 # --- ghdl ---
 
+ghdl-submodule: $(GHDL_PREFIX)/configure
 $(GHDL_PREFIX)/configure:
 	( cd $(SELFDIR) && git submodule update --init $(GHDL_PREFIX) )
 
@@ -105,35 +110,36 @@ $(GHDL_PREFIX)/Makefile: $(GHDL_PREFIX)/configure
 	( cd $(GHDL_PREFIX) && ./configure --prefix="$(GHDL_BUILD)" )
 
 $(GHDL_MCODE): $(GHDL_PREFIX)/Makefile
-	( cd $(GHDL_PREFIX) && make OPT_FLAGS=-fPIC )
+	( cd $(GHDL_PREFIX) && $(MAKE) OPT_FLAGS=-fPIC )
 
 force-ghdl $(GHDL): $(GHDL_MCODE)
-	( cd $(GHDL_PREFIX) && make install )
+	( cd $(GHDL_PREFIX) && $(MAKE) install )
 
 # --- ghdl-yosys-plugin ---
 
+ghdl-yosys-submodule: $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile
 $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile:
 	( cd $(SELFDIR) && git submodule update --init $(GHDL_YOSYS_PLUGIN_PREFIX) )
 
 force-ghdl-yosys $(GHDL_YOSYS_PLUGIN): $(GHDL) $(YOSYS) $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile
-	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && make GHDL="$(GHDL)" YOSYS_CONFIG="$(YOSYS_PREFIX)/yosys-config" CFLAGS="-I$(YOSYS_PREFIX) -O" )
+	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && $(MAKE) GHDL="$(GHDL)" YOSYS_CONFIG="$(YOSYS_PREFIX)/yosys-config" CFLAGS="-I$(YOSYS_PREFIX) -O" )
 
 # --- clean ---
 
 clean-ghdl:
-	( cd $(GHDL_PREFIX) && ( make clean ; git clean -xdf ) || echo 'ghdl clean failed' )
+	( cd $(GHDL_PREFIX) && ( $(MAKE) clean ; git clean -xdf ) || echo 'ghdl clean failed' )
 
 clean-ghdl-yosys:
-	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && make clean || echo 'ghdl-yosys clean failed' )
+	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && $(MAKE) clean || echo 'ghdl-yosys clean failed' )
 
 clean-nextpnr-xilinx:
-	( cd $(NEXTPNR_XILINX_PREFIX) && make clean || echo 'nextpnr-xilinx clean failed' )
+	( cd $(NEXTPNR_XILINX_PREFIX) && $(MAKE) clean || echo 'nextpnr-xilinx clean failed' )
 
 clean-prjxray:
-	( cd $(PRJXRAY_PREFIX) && ( make clean ; ( cd database && make reset ) ) || echo 'prjxray clean failed' )
+	( cd $(PRJXRAY_PREFIX) && ( $(MAKE) clean ; ( cd database && $(MAKE) reset ) ) || echo 'prjxray clean failed' )
 
 clean-yosys:
-	( cd $(YOSYS_PREFIX) && ( make clean ; rm Makefile.conf ) || echo 'yosys clean failed' )
+	( cd $(YOSYS_PREFIX) && ( $(MAKE) clean ; rm Makefile.conf ) || echo 'yosys clean failed' )
 
 clean: clean-ghdl clean-ghdl-yosys clean-yosys clean-nextpnr clean-prjxray
 	rm -rf prjxray_env.sh
