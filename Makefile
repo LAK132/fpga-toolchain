@@ -7,10 +7,10 @@ endif
 YOSYS_PREFIX=$(SELFDIR)/yosys
 YOSYS=$(YOSYS_PREFIX)/yosys
 
-NEXTPNR_PREFIX=$(SELFDIR)/nextpnr-xilinx
-NEXTPNR=$(NEXTPNR_PREFIX)/nextpnr-xilinx
-BBAEXPORT=$(NEXTPNR_PREFIX)/xilinx/python/bbaexport.py
-BBASM=$(NEXTPNR_PREFIX)/bbasm
+NEXTPNR_XILINX_PREFIX=$(SELFDIR)/nextpnr-xilinx
+NEXTPNR_XILINX=$(NEXTPNR_XILINX_PREFIX)/nextpnr-xilinx
+BBAEXPORT=$(NEXTPNR_XILINX_PREFIX)/xilinx/python/bbaexport.py
+BBASM=$(NEXTPNR_XILINX_PREFIX)/bbasm
 
 GHDL_PREFIX=$(SELFDIR)/ghdl
 GHDL_BUILD=$(GHDL_PREFIX)/build
@@ -33,7 +33,7 @@ XRAYDBDIR=$(PRJXRAY_PREFIX)/database
 
 VIVADO_PREFIX=/opt/Xilinx
 
-all: $(GHDL_YOSYS_DEPEND) $(NEXTPNR) $(XRAYDBDIR)
+all: $(GHDL_YOSYS_DEPEND) $(NEXTPNR_XILINX) $(XRAYDBDIR)
 .PHONY: all
 
 install_dependencies:
@@ -71,7 +71,7 @@ force-prjxray $(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
 $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build
 $(XC7FRAMES2BIT): $(PRJXRAY_PREFIX)/build
 
-$(XRAYENV): $(SELFDIR)/prjxray_settings.sh Makefile
+$(XRAYENV): $(SELFDIR)/prjxray_settings.sh
 	@echo "export XRAY_VIVADO_SETTINGS=$<;source $(PRJXRAY_PREFIX)/utils/environment.sh" > $@ && chmod +x $@
 
 # To depend on this correctly, you must depend on $(XRAYDBDIR)/<FAMILY>/<PART>
@@ -82,18 +82,18 @@ $(XRAYDBDIR)/%: $(PRJXRAY_PREFIX)/Makefile
 
 # --- nextpnr-xilinx ---
 
-$(NEXTPNR_PREFIX)/CMakeLists.txt:
-	( cd $(SELFDIR) && git submodule update --init $(NEXTPNR_PREFIX) ) && \
-	( cd $(NEXTPNR_PREFIX) && git submodule update --init )
+$(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt:
+	( cd $(SELFDIR) && git submodule update --init $(NEXTPNR_XILINX_PREFIX) ) && \
+	( cd $(NEXTPNR_XILINX_PREFIX) && git submodule update --init )
 
-$(NEXTPNR_PREFIX)/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt
-	( cd $(NEXTPNR_PREFIX) && cmake -DARCH=xilinx . )
+$(NEXTPNR_XILINX_PREFIX)/Makefile: $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt
+	( cd $(NEXTPNR_XILINX_PREFIX) && cmake -DARCH=xilinx . )
 
-force-nextpnr $(NEXTPNR): $(NEXTPNR_PREFIX)/Makefile
-	( cd $(NEXTPNR_PREFIX) && make )
+force-nextpnr-xilinx $(NEXTPNR_XILINX): $(NEXTPNR_XILINX_PREFIX)/Makefile
+	( cd $(NEXTPNR_XILINX_PREFIX) && make )
 
-$(BBAEXPORT): $(NEXTPNR)
-$(BBASM): $(NEXTPNR)
+$(BBAEXPORT): $(NEXTPNR_XILINX)
+$(BBASM): $(NEXTPNR_XILINX)
 
 # --- ghdl ---
 
@@ -125,8 +125,8 @@ clean-ghdl:
 clean-ghdl-yosys:
 	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && make clean || echo 'ghdl-yosys clean failed' )
 
-clean-nextpnr:
-	( cd $(NEXTPNR_PREFIX) && make clean || echo 'nextpnr clean failed' )
+clean-nextpnr-xilinx:
+	( cd $(NEXTPNR_XILINX_PREFIX) && make clean || echo 'nextpnr-xilinx clean failed' )
 
 clean-prjxray:
 	( cd $(PRJXRAY_PREFIX) && ( make clean ; ( cd database && make reset ) ) || echo 'prjxray clean failed' )
