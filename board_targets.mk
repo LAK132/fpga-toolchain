@@ -48,7 +48,7 @@ $$(BOARD_BIN_DIR)/$1.json: $$(BOARD_BIN_DIR)/$1.ys
 $$(BOARD_BIN_DIR)/$1.fasm: $$(XILINX_BIN_DIR)/$$($1_FPGA_PART).bin $$(BOARD_BIN_DIR)/$1.json $$($1_XDC) | $$(NEXTPNR_XILINX)
 	$$(NEXTPNR_XILINX) --chipdb $$(XILINX_BIN_DIR)/$$($1_FPGA_PART).bin --xdc $$($1_XDC) --json $$(BOARD_BIN_DIR)/$1.json --write $$(BOARD_BIN_DIR)/$1_routed.json --fasm $$@
 
-$$(BOARD_BIN_DIR)/$1.frames: $$(BOARD_BIN_DIR)/$1.fasm | $$(FASM2FRAMES) $$(XRAYDBDIR)/$$($1_FPGA_FAMILY)/$$($1_FPGA_PART)
+$$(BOARD_BIN_DIR)/$1.frames: $$(BOARD_BIN_DIR)/$1.fasm | $$(FASM2FRAMES) $$(XRAYENV) $$(XRAYDBDIR)/$$($1_FPGA_FAMILY)/$$($1_FPGA_PART)
 	$$(shell bash -c "source $$(XRAYENV) && python3 $$(FASM2FRAMES) --db-root '$$(XRAYDBDIR)/$$($1_FPGA_FAMILY)' --part $$($1_FPGA_PART) $$< > $$@ || ( rm $$@ ; return 1 )" )
 
 $$(BIN_DIR)/$1.bit: $$(BOARD_BIN_DIR)/$1.frames $$(XRAYENV) | $$(XC7FRAMES2BIT) $$(SDCARD_DIR)
