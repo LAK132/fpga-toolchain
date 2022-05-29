@@ -52,7 +52,7 @@ $$(BOARD_BIN_DIR)/$1.frames: $$(BOARD_BIN_DIR)/$1.fasm | $$(FASM2FRAMES) $$(XRAY
 	$$(shell bash -c "source $$(XRAYENV) && python3 $$(FASM2FRAMES) --db-root '$$(XRAYDBDIR)/$$($1_FPGA_FAMILY)' --part $$($1_FPGA_PART) $$< > $$@ || ( rm $$@ ; return 1 )" )
 
 $$(BIN_DIR)/$1.bit: $$(BOARD_BIN_DIR)/$1.frames $$(XRAYENV) | $$(XC7FRAMES2BIT) $$(SDCARD_DIR)
-	$$(shell bash -c "source $$(XRAYENV) && $$(XC7FRAMES2BIT) --part_file '$$(XRAYDBDIR)/$$($1_FPGA_FAMILY)/$$($1_FPGA_PART)/part.yaml' --part_name $$($1_FPGA_PART) --frm_file $$< --output_file $$@" )
+	$$(shell bash -c "source $$(XRAYENV) && $$(XC7FRAMES2BIT) --compressed --part_file '$$(XRAYDBDIR)/$$($1_FPGA_FAMILY)/$$($1_FPGA_PART)/part.yaml' --part_name $$($1_FPGA_PART) --frm_file $$< --output_file $$@" )
 endef
 
 $(foreach B,$(XILINX_BOARDS),$(eval $(call XILINX_BOARD_BUILDER,$B)))
