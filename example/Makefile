@@ -3,8 +3,7 @@ include ../Makefile
 BIN_DIR=bin
 BOARDS_DIR=boards
 TOOLS_DIR=tools
-VERILOG_SRC_DIR=verilog
-VHDL_SRC_DIR=vhdl
+SRC_DIR=source
 
 include ../board_def.mk
 
@@ -12,8 +11,8 @@ $(eval $(call DECLARE_XILINX_BOARD, \
 mega65r3, artix7, xc7, xc7a200tfbg484-2, \
 $(BOARDS_DIR)/mega65r3.xdc, \
 blink, \
-$(wildcard $(VHDL_SRC_DIR)/*.v), \
-$(wildcard $(VHDL_SRC_DIR)/*.vhdl), blink))
+$(wildcard $(SRC_DIR)/*.v), \
+$(wildcard $(SRC_DIR)/*.vhdl), blink))
 
 include ../board_targets.mk
 
