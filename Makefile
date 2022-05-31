@@ -4,6 +4,8 @@ else
 SELFDIR := $(abspath $(PWD)/$(dir $(lastword $(MAKEFILE_LIST))))
 endif
 
+AMARANTH_PREFIX=$(SELFDIR)/amaranth
+
 YOSYS_PREFIX=$(SELFDIR)/yosys
 YOSYS=$(YOSYS_PREFIX)/yosys
 
@@ -33,8 +35,8 @@ XRAYDBDIR=$(PRJXRAY_PREFIX)/database
 
 VIVADO_PREFIX=/opt/Xilinx
 
-all: $(GHDL_YOSYS_DEPEND) $(NEXTPNR_XILINX) $(XRAYDBDIR) $(XC7FRAMES2BIT)
-submodules: yosys-submodule prjxray-submodule nextpnr-xilinx-submodule ghdl-submodule ghdl-yosys-submodule
+all: force-amaranth $(GHDL_YOSYS_DEPEND) $(NEXTPNR_XILINX) $(XRAYDBDIR) $(XC7FRAMES2BIT)
+submodules: amaranth-submodule yosys-submodule prjxray-submodule nextpnr-xilinx-submodule ghdl-submodule ghdl-yosys-submodule
 .PHONY: all
 
 install_dependencies:
@@ -48,6 +50,15 @@ install_dependencies:
 # if you get `nextpnr-xilinx: error while loading shared libraries: libQt5Core.so.5: cannot open shared object file: No such file or directory`
 # try running `sudo strip --remove-section=.note.ABI-tag /usr/lib/x86_64-linux-gnu/libQt5Core.so.5`
 # https://askubuntu.com/questions/1034313/ubuntu-18-4-libqt5core-so-5-cannot-open-shared-object-file-no-such-file-or-dir
+
+# --- amaranth ---
+
+amaranth-submodule: $(AMARANTH_PREFIX)/setup.py
+$(AMARANTH_PREFIX)/setup.py:
+	( cd (SELFDIR) && git submodule update --init $(AMARANTH_PREFIX) )
+
+force-amaranth: $(AMARANTH_PREFIX)/setup.py
+	( cd $(AMARANTH_PREFIX) && python3 -m pip install --editable . )
 
 # --- yosys ---
 

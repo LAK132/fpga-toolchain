@@ -7,8 +7,9 @@ SRC_DIR=source
 
 include ../board_def.mk
 
-$(eval $(call DECLARE_XILINX_BOARD, \
-mega65r3, artix7, xc7, xc7a200tfbg484-2, \
+$(eval $(call DECLARE_XILINX_BOARD, mega65r3, artix7, xc7, xc7a200tfbg484-2))
+
+$(eval $(call DECLARE_BOARD_SOURCE, mega65r3, \
 $(BOARDS_DIR)/mega65r3.xdc, \
 blink, \
 $(wildcard $(SRC_DIR)/*.v), \
@@ -21,6 +22,7 @@ bit2core $(BIT2CORE): $(TOOLS_DIR)/bit2core.c
 	gcc $< -o $(BIT2CORE)
 
 define BIT2CORE_BUILDER=
+$1.cor: $$(BIN_DIR)/$1.cor
 $$(BIN_DIR)/$1.cor: $$(BIN_DIR)/$1.bit $$(BIT2CORE)
 	$$(BIT2CORE) $1 $$< "BLINK" "V1" $$@
 endef
