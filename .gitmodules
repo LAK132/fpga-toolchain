@@ -21,3 +21,8 @@
 [submodule "amaranth"]
 	path = amaranth
 	url = https://github.com/LAK132/amaranth
+	ignore = dirty
+[submodule "mega65-tools"]
+	path = mega65-tools
+	url = https://github.com/MEGA65/mega65-tools
+	ignore = dirty
