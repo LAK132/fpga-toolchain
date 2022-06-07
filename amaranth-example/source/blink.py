@@ -24,6 +24,10 @@ class Blink(Elaboratable):
 
 
 if __name__ == "__main__":
+    import os
     Mega65r3Platform(toolchain="yosys_nextpnr").build(
-        Blink(), name="blink", build_dir="build",
-        do_build=True, do_program=False)
+        Blink(),
+        name=os.environ["BITSTREAM_NAME"],
+        build_dir=os.environ["BUILD_DIR"],
+        do_build=True,
+        do_program=False)

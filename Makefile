@@ -30,13 +30,17 @@ GHDL_YOSYS_DEPEND=$(YOSYS) $(GHDL_YOSYS_PLUGIN)
 PRJXRAY_PREFIX=$(SELFDIR)/prjxray
 XRAYENV=$(SELFDIR)/prjxray_env.sh
 FASM2FRAMES=$(PRJXRAY_PREFIX)/utils/fasm2frames.py
+FASM2FRAMES_SH=$(SELFDIR)/fasm2frames.sh
 XC7FRAMES2BIT=$(PRJXRAY_PREFIX)/build/tools/xc7frames2bit
 XRAYDBDIR=$(PRJXRAY_PREFIX)/database
 
 VIVADO_PREFIX=/opt/Xilinx
 
-all: force-amaranth $(GHDL_YOSYS_DEPEND) $(NEXTPNR_XILINX) $(XRAYDBDIR) $(XC7FRAMES2BIT)
-submodules: amaranth-submodule yosys-submodule prjxray-submodule nextpnr-xilinx-submodule ghdl-submodule ghdl-yosys-submodule
+MEGA65_TOOLS_DIR=$(SELFDIR)/mega65-tools
+BIT2CORE=$(MEGA65_TOOLS_DIR)/bin/bit2core
+
+all: force-amaranth $(GHDL_YOSYS_DEPEND) $(NEXTPNR_XILINX) $(XRAYDBDIR) $(XC7FRAMES2BIT) $(BIT2CORE)
+submodules: amaranth-submodule yosys-submodule prjxray-submodule nextpnr-xilinx-submodule ghdl-submodule ghdl-yosys-submodule mega65-tools-submodule
 .PHONY: all
 
 install_dependencies:
@@ -135,6 +139,15 @@ $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile:
 force-ghdl-yosys $(GHDL_YOSYS_PLUGIN): $(GHDL) $(YOSYS) $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile
 	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && $(MAKE) GHDL="$(GHDL)" YOSYS_CONFIG="$(YOSYS_PREFIX)/yosys-config" CFLAGS="-I$(YOSYS_PREFIX) -O" )
 
+# --- mega65-tools ---
+
+mega65-tools-submodule: $(MEGA65_TOOLS_DIR)/Makefile
+$(MEGA65_TOOLS_DIR)/Makefile:
+	( cd $(SELFDIR) && git submodule update --init $(MEGA65_TOOLS_DIR) )
+
+force-bit2core $(BIT2CORE): $(MEGA65_TOOLS_DIR)/Makefile
+	( cd $(MEGA65_TOOLS_DIR) && $(MAKE) bin/bit2core )
+
 # --- clean ---
 
 clean-ghdl:
@@ -148,9 +161,12 @@ clean-nextpnr-xilinx:
 
 clean-prjxray:
 	( cd $(PRJXRAY_PREFIX) && ( $(MAKE) clean ; ( cd database && $(MAKE) reset ) ) || echo 'prjxray clean failed' )
+	rm -rf prjxray_env.sh
 
 clean-yosys:
 	( cd $(YOSYS_PREFIX) && ( $(MAKE) clean ; rm Makefile.conf ) || echo 'yosys clean failed' )
 
-clean: clean-ghdl clean-ghdl-yosys clean-yosys clean-nextpnr clean-prjxray
-	rm -rf prjxray_env.sh
+clean-mega65-tools:
+	( cd $(MEGA65_TOOLS_DIR) && $(MAKE) clean || echo 'mega65-tools clean failed' )
+
+clean: clean-ghdl clean-ghdl-yosys clean-yosys clean-nextpnr-xilinx clean-prjxray clean-mega65-tools
