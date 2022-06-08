@@ -1,32 +1,22 @@
 from boards.mega65r3 import *
+from amaranth_blink import *
+from vhdl_blink import *
 from amaranth import *
 from amaranth.vendor.xilinx import *
 
 
-class Blink(Elaboratable):
+class Top(Elaboratable):
     def elaborate(self, platform):
         m = Module()
-
-        led = platform.request("led")
-        eth_led = platform.request("ethernet").led
-
-        half_freq = int(platform.default_clk_frequency // 2)
-        timer = Signal(range(half_freq+1))
-
-        with m.If(timer == half_freq):
-            m.d.sync += led.eq(~led)
-            m.d.sync += eth_led.eq(~eth_led)
-            m.d.sync += timer.eq(0)
-        with m.Else():
-            m.d.sync += timer.eq(timer + 1)
-
+        m.submodules += AmaranthBlink()
+        m.submodules += VhdlBlink()
         return m
 
 
 if __name__ == "__main__":
     import os
     Mega65r3Platform(toolchain="yosys_nextpnr").build(
-        Blink(),
+        Top(),
         name=os.environ["BITSTREAM_NAME"],
         build_dir=os.environ["BUILD_DIR"],
         do_build=True,
