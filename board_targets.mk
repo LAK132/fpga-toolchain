@@ -31,10 +31,10 @@ $(eval $(call SHARED_BOARD_BUILDER,$B,$C))))
 
 define VHDL_VERILOG_BOARD_BUILDER=
 ifneq ($$($2_VHDL),)
-$$($1_BUILD_DIR)/$2_vhdl.ys: $$($2_VERILOG) $$($2_VHDL) | $$($1_BUILD_DIR) $$(YOSYS) $$(GHDL_YOSYS_PLUGIN)
+$$($1_BUILD_DIR)/$2_vhdl.ys: $$($2_VERILOG) $$($2_VHDL) | $$($1_BUILD_DIR) $$(YOSYS)
 	@echo "ghdl $$($2_VHDL) -e $$($2_VHDL_ELABORATE);" > $$@
 else
-$$($1_BUILD_DIR)/$2_vhdl.ys: $$($2_VERILOG) $$($2_VHDL) | $$($1_BUILD_DIR) $$(YOSYS) $$(GHDL_YOSYS_PLUGIN)
+$$($1_BUILD_DIR)/$2_vhdl.ys: $$($2_VERILOG) $$($2_VHDL) | $$($1_BUILD_DIR) $$(YOSYS)
 	@echo "" > $$@
 endif
 
@@ -72,7 +72,7 @@ $$(XILINX_BUILD_DIR)/$$($1_FPGA_PART).bba: | $$(BBAEXPORT) $$(XILINX_BUILD_DIR) 
 	python3 $$(BBAEXPORT) --xray $$(XRAYDBDIR)/$$($1_FPGA_FAMILY) --device $$($1_FPGA_PART) --bba $$@
 
 $$($1_BUILD_DIR)/$2.json: $$($1_BUILD_DIR)/$2.ys
-	$$(GHDL_YOSYS) -s $$($1_BUILD_DIR)/$2.ys -p "synth_xilinx -abc9 -flatten -family $$($1_FPGA_ARCH) -top $$($2_TOP); write_json $$@"
+	$$(YOSYS) -s $$($1_BUILD_DIR)/$2.ys -p "synth_xilinx -abc9 -flatten -family $$($1_FPGA_ARCH) -top $$($2_TOP); write_json $$@"
 
 $$($1_BUILD_DIR)/$2.fasm: $$(XILINX_BUILD_DIR)/$$($1_FPGA_PART).bin $$($1_BUILD_DIR)/$2.json $$($1_XDC) | $$(NEXTPNR_XILINX)
 	$$(NEXTPNR_XILINX) --chipdb $$(XILINX_BUILD_DIR)/$$($1_FPGA_PART).bin --xdc $$($1_XDC) --json $$($1_BUILD_DIR)/$2.json --write $$($1_BUILD_DIR)/$2_routed.json --fasm $$@

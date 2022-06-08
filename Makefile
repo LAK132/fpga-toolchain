@@ -22,10 +22,6 @@ GHDL_LIB=$(GHDL_BUILD)/lib
 GHDL=$(GHDL_BIN)/ghdl
 
 GHDL_YOSYS_PLUGIN_PREFIX=$(SELFDIR)/ghdl-yosys-plugin
-GHDL_YOSYS_PLUGIN=$(GHDL_YOSYS_PLUGIN_PREFIX)/ghdl.so
-
-GHDL_YOSYS=$(YOSYS) -m $(GHDL_YOSYS_PLUGIN)
-GHDL_YOSYS_DEPEND=$(YOSYS) $(GHDL_YOSYS_PLUGIN)
 
 PRJXRAY_PREFIX=$(SELFDIR)/prjxray
 XRAYENV=$(SELFDIR)/prjxray_env.sh
@@ -70,8 +66,14 @@ yosys-submodule: $(YOSYS_PREFIX)/Makefile
 $(YOSYS_PREFIX)/Makefile:
 	( cd $(SELFDIR) && git submodule update --init $(YOSYS_PREFIX) )
 
-$(YOSYS_PREFIX)/Makefile.conf: $(YOSYS_PREFIX)/Makefile
-	( cd $(YOSYS_PREFIX) && $(MAKE) config-gcc && echo 'ENABLE_CCACHE := 1' >> Makefile.conf )
+$(YOSYS_PREFIX)/frontends/ghdl: | $(YOSYS_PREFIX)/frontends
+	mkdir -p $@
+
+$(YOSYS_PREFIX)/frontends/ghdl/%: $(GHDL_YOSYS_PLUGIN_PREFIX)/src/% | $(YOSYS_PREFIX)/frontends/ghdl
+	cp -f $< $@
+
+$(YOSYS_PREFIX)/Makefile.conf: $(YOSYS_PREFIX)/Makefile $(YOSYS_PREFIX)/frontends/ghdl/Makefile.inc $(YOSYS_PREFIX)/frontends/ghdl/ghdl.cc $(GHDL)
+	( cd $(YOSYS_PREFIX) && $(MAKE) config-gcc && echo 'ENABLE_CCACHE := 1' >> Makefile.conf && echo 'ENABLE_GHDL := 1' >> Makefile.conf && echo 'GHDL_PREFIX := $(GHDL_BUILD)' >> Makefile.conf && echo 'CXXFLAGS ?= -I"$(shell $(GHDL) --libghdl-include-dir)"' >> Makefile.conf )
 
 force-yosys $(YOSYS): $(YOSYS_PREFIX)/Makefile.conf
 	( cd $(YOSYS_PREFIX) && $(MAKE) )
@@ -132,12 +134,10 @@ force-ghdl $(GHDL): $(GHDL_MCODE)
 
 # --- ghdl-yosys-plugin ---
 
-ghdl-yosys-submodule: $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile
-$(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile:
+ghdl-yosys-submodule: $(GHDL_YOSYS_PLUGIN_PREFIX)/src
+$(GHDL_YOSYS_PLUGIN_PREFIX)/src/%: | $(GHDL_YOSYS_PLUGIN_PREFIX)/src
+$(GHDL_YOSYS_PLUGIN_PREFIX)/src:
 	( cd $(SELFDIR) && git submodule update --init $(GHDL_YOSYS_PLUGIN_PREFIX) )
-
-force-ghdl-yosys $(GHDL_YOSYS_PLUGIN): $(GHDL) $(YOSYS) $(GHDL_YOSYS_PLUGIN_PREFIX)/Makefile
-	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && $(MAKE) GHDL="$(GHDL)" YOSYS_CONFIG="$(YOSYS_PREFIX)/yosys-config" CFLAGS="-I$(YOSYS_PREFIX) -O" )
 
 # --- mega65-tools ---
 
