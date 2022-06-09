@@ -67,10 +67,14 @@ $(XILINX_BUILD_DIR)/%.bin: $(XILINX_BUILD_DIR)/%.bba | $(BBASM)
 
 # --- Xilinx specific VHDL/Verilog toolchain targets ---
 
-define XILINX_BOARD_BUILDER=
+define XILINX_PART_BUILDER=
 $$(XILINX_BUILD_DIR)/$$($1_FPGA_PART).bba: | $$(BBAEXPORT) $$(XILINX_BUILD_DIR) $$(XRAYDBDIR)/$$($1_FPGA_FAMILY)/$$($1_FPGA_PART)
 	python3 $$(BBAEXPORT) --xray $$(XRAYDBDIR)/$$($1_FPGA_FAMILY) --device $$($1_FPGA_PART) --bba $$@
+endef
 
+$(foreach B,$(ALL_XILINX_BOARDS), $(eval $(call XILINX_PART_BUILDER,$B)))
+
+define XILINX_BOARD_BUILDER=
 $$($1_BUILD_DIR)/$2.json: $$($1_BUILD_DIR)/$2.ys
 	$$(YOSYS) -s $$($1_BUILD_DIR)/$2.ys -p "synth_xilinx -abc9 -flatten -family $$($1_FPGA_ARCH) -top $$($2_TOP); write_json $$@"
 
