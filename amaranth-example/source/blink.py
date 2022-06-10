@@ -15,7 +15,7 @@ class Top(Elaboratable):
 
 if __name__ == "__main__":
     import os
-    Mega65r3Platform(toolchain="yosys_nextpnr").build(
+    Mega65r3Platform(toolchain="ghdl_yosys_nextpnr_prjxray").build(
         Top(),
         name=os.environ["BITSTREAM_NAME"],
         build_dir=os.environ["BUILD_DIR"],

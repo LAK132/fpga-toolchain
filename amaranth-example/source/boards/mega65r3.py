@@ -1,11 +1,12 @@
 from amaranth import *
 from amaranth.build import *
 from amaranth.vendor.xilinx import *
+from open_xilinx_platform import *
 
 __all__ = ["Mega65r3Platform"]
 
 
-class Mega65r3Platform(XilinxPlatform):
+class Mega65r3Platform(OpenXilinxPlatform):
     device = "xc7a200t"
     package = "fbg484"
     speed = "2"
