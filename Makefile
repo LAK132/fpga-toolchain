@@ -47,10 +47,6 @@ install_dependencies:
 	libboost-thread-dev libboost-program-options-dev libboost-iostreams-dev \
 	zlib1g-dev qtbase5-dev libqt5gui5 libeigen3-dev ccache
 
-# if you get `nextpnr-xilinx: error while loading shared libraries: libQt5Core.so.5: cannot open shared object file: No such file or directory`
-# try running `sudo strip --remove-section=.note.ABI-tag /usr/lib/x86_64-linux-gnu/libQt5Core.so.5`
-# https://askubuntu.com/questions/1034313/ubuntu-18-4-libqt5core-so-5-cannot-open-shared-object-file-no-such-file-or-dir
-
 # --- amaranth ---
 
 amaranth-submodule: $(AMARANTH_PREFIX)/setup.py
