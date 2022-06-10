@@ -16,7 +16,7 @@
 	ignore = dirty
 [submodule "ghdl-yosys-plugin"]
 	path = ghdl-yosys-plugin
-	url = https://github.com/ghdl/ghdl-yosys-plugin
+	url = https://github.com/LAK132/ghdl-yosys-plugin
 	ignore = dirty
 [submodule "amaranth"]
 	path = amaranth
