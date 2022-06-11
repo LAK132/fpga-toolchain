@@ -142,13 +142,14 @@ class OpenXilinxPlatform(XilinxPlatform):
             --part_name $PART
             --frm_file {{name}}.frames
             --output_file {{name}}.bit
+            --compressed
         """,
     ]
 
     def __init__(self, *, toolchain=None):
         self.override_toolchain = toolchain == "ghdl_yosys_nextpnr_prjxray"
         super().__init__(
-            toolchain="Symbiflow" if self.override_toolchain else toolchain)
+            toolchain="ISE" if self.override_toolchain else toolchain)
         self.ghdl_tops = set()
         self.ghdl_libraries = dict()
 
@@ -172,6 +173,9 @@ class OpenXilinxPlatform(XilinxPlatform):
             return self._ghdl_yosys_nextpnr_prjxray_command_templates
         else:
             return super().command_templates()
+
+    def create_missing_domain(self, name):
+        return super(XilinxPlatform, self).create_missing_domain(name)
 
 
 class GhdlInstance(Elaboratable):
