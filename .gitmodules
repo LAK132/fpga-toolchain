@@ -26,3 +26,11 @@
 	path = mega65-tools
 	url = https://github.com/MEGA65/mega65-tools
 	ignore = dirty
+[submodule "nextpnr"]
+	path = nextpnr
+	url = https://github.com/YosysHQ/nextpnr
+	ignore = dirty
+[submodule "prjtrellis"]
+	path = prjtrellis
+	url = https://github.com/YosysHQ/prjtrellis
+	ignore = dirty
