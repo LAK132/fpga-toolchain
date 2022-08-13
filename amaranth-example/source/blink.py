@@ -1,4 +1,3 @@
-from boards.mega65r3 import *
 from amaranth_blink import *
 from vhdl_blink import *
 from amaranth import *
@@ -15,9 +14,20 @@ class Top(Elaboratable):
 
 if __name__ == "__main__":
     import os
-    Mega65r3Platform(toolchain="ghdl_yosys_nextpnr_prjxray").build(
-        Top(),
-        name=os.environ["BITSTREAM_NAME"],
-        build_dir=os.environ["BUILD_DIR"],
-        do_build=True,
-        do_program=False)
+    if os.environ["BUILD_DIR"].endswith("mega65r3"):
+        from amaranth_boards.mega65_r3 import *
+        Mega65r3Platform(toolchain="yosys_nextpnr").build(
+            Top(),
+            name=os.environ["BITSTREAM_NAME"],
+            build_dir=os.environ["BUILD_DIR"],
+            do_build=True,
+            do_program=False)
+    elif os.environ["BUILD_DIR"].endswith("orange-crab"):
+        from amaranth_boards.orangecrab_r0_2 import *
+        from amaranth_boards.test.blinky import *
+        OrangeCrabR0_2Platform().build(
+            Blinky(),
+            name=os.environ["BITSTREAM_NAME"],
+            build_dir=os.environ["BUILD_DIR"],
+            do_build=True,
+            do_program=False)

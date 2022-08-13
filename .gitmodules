@@ -34,3 +34,15 @@
 	path = prjtrellis
 	url = https://github.com/YosysHQ/prjtrellis
 	ignore = dirty
+[submodule "mega65-core/source/xpm_vhdl"]
+	path = mega65-core/source/xpm_vhdl
+	url = https://github.com/fransschreuder/xpm_vhdl
+	ignore = dirty
+[submodule "fasm2bit"]
+	path = fasm2bit
+	url = https://github.com/LAK132/fasm2bit
+	ignore = dirty
+[submodule "amaranth-boards"]
+	path = amaranth-boards
+	url = https://github.com/LAK132/amaranth-boards
+	ignore = dirty

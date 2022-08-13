@@ -16,7 +16,14 @@ define SHARED_BOARD_BUILDER=
 $1_BUILD_DIR=$$(BUILD_DIR)/$1
 $$($1_BUILD_DIR):
 	mkdir -p $$@
+endef
 
+$(foreach B,$(ALL_BOARDS),\
+$(eval $(call SHARED_BOARD_BUILDER,$B)))
+
+define SHARED_CORE_BUILDER=
+$2.$1.bit: $$($1_BUILD_DIR)/$2.bit
+	cp $$< $$@
 $$($1_BUILD_DIR)/$2.cor: $$($1_BUILD_DIR)/$2.bit $$(BIT2CORE)
 	$$(BIT2CORE) $1 $$< $$($2_CORE_NAME) $$($2_CORE_VERSION) $$@
 $2.$1.cor: $$($1_BUILD_DIR)/$2.cor
@@ -25,7 +32,7 @@ endef
 
 $(foreach B,$(ALL_BOARDS),\
 $(foreach C,$(ALL_CORES),\
-$(eval $(call SHARED_BOARD_BUILDER,$B,$C))))
+$(eval $(call SHARED_CORE_BUILDER,$B,$C))))
 
 # --- Generic VHDL/Verilog toolchain targets ---
 
@@ -95,16 +102,17 @@ $(eval $(call XILINX_BOARD_BUILDER,$B,$C))))
 # --- Xilinx specific Amaranth toolchain targets ---
 # :TODO: we should probably be invoking a generated python script that imports
 # the requested modules and platform
-define AMARANTH_BOARD_BUILDER=
+define XILINX_AMARANTH_BOARD_BUILDER=
 $$(warning $$($1_BUILD_DIR)/$2.bit)
 $$($1_BUILD_DIR)/$2.bit: $$($2_PYTHON) $$($2_DEPENDS) | $$($1_BUILD_DIR) $$(XILINX_BUILD_DIR)/$$($1_FPGA_PART).bin $$(YOSYS) $$(NEXTPNR_XILINX) $$(FASM2FRAMES) $$(XC7FRAMES2BIT) $$(XRAYENV) $$(XRAYDBDIR)/$$($1_FPGA_FAMILY)/$$($1_FPGA_PART)
 	YOSYS="$$(YOSYS)" \
 	NEXTPNR_XILINX="$$(NEXTPNR_XILINX)" \
-	AMARANTH_ENV_ISE="$$(XRAYENV)" \
+	AMARANTH_ENV_YOSYS_NEXTPNR="$$(XRAYENV)" \
 	FASM2FRAMES="$$(FASM2FRAMES)" \
 	XC7FRAMES2BIT="$$(XC7FRAMES2BIT)" \
 	AMARANTH_nextpnr_db_dir="$$(XILINX_BUILD_DIR)" \
 	AMARANTH_prjxray_db_dir="$$(XRAYDBDIR)" \
+	AMARANTH_xc7frames2bit_opts="--compressed" \
 	BITSTREAM_NAME="$2" \
 	BUILD_DIR="$$($1_BUILD_DIR)" \
 	python3 $$($2_PYTHON)
@@ -112,4 +120,29 @@ endef
 
 $(foreach B,$(ALL_XILINX_BOARDS),\
 $(foreach C,$(ALL_AMARANTH_CORES),\
-$(eval $(call AMARANTH_BOARD_BUILDER,$B,$C))))
+$(eval $(call XILINX_AMARANTH_BOARD_BUILDER,$B,$C))))
+
+# --- Lattice specific targets ---
+
+LATTICE_BUILD_DIR=$(BUILD_DIR)/lattice
+$(LATTICE_BUILD_DIR):
+	mkdir -p $@
+
+.PRECIOUS: $(LATTICE_BUILD_DIR)/%.bit
+
+# --- Lattice specific Amaranth toolchain targets ---
+
+define LATTICE_AMARANTH_BOARD_BUILDER=
+$$(warning $$($1_BUILD_DIR)/$2.bit)
+$$($1_BUILD_DIR)/$2.bit: $$($2_PYTHON) $$($2_DEPENDS) | $$($1_BUILD_DIR) $$(YOSYS) $$(NEXTPNR_ECP5) $$(TRELLISENV)
+	YOSYS="$$(YOSYS)" \
+	NEXTPNR_ECP5="$$(NEXTPNR_ECP5)" \
+	BITSTREAM_NAME="$2" \
+	BUILD_DIR="$$($1_BUILD_DIR)" \
+	ECPPACK="$$(ECPPACK)" \
+	python3 $$($2_PYTHON)
+endef
+
+$(foreach B,$(ALL_LATTICE_BOARDS),\
+$(foreach C,$(ALL_AMARANTH_CORES),\
+$(eval $(call LATTICE_AMARANTH_BOARD_BUILDER,$B,$C))))

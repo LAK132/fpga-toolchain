@@ -1,3 +1,4 @@
 build/**
+*.bit
 *.cor
 *.pyc

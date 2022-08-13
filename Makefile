@@ -6,8 +6,13 @@ endif
 
 AMARANTH_PREFIX=$(SELFDIR)/amaranth
 
+AMARANTH_BOARDS_PREFIX=$(SELFDIR)/amaranth-boards
+
 YOSYS_PREFIX=$(SELFDIR)/yosys
 YOSYS=$(YOSYS_PREFIX)/yosys
+
+NEXTPNR_PREFIX=$(SELFDIR)/nextpnr
+NEXTPNR_ECP5=$(NEXTPNR_PREFIX)/nextpnr-ecp5
 
 NEXTPNR_XILINX_PREFIX=$(SELFDIR)/nextpnr-xilinx
 NEXTPNR_XILINX=$(NEXTPNR_XILINX_PREFIX)/nextpnr-xilinx
@@ -23,6 +28,13 @@ GHDL=$(GHDL_BIN)/ghdl
 
 GHDL_YOSYS_PLUGIN_PREFIX=$(SELFDIR)/ghdl-yosys-plugin
 
+PRJTRELLIS_PREFIX=$(SELFDIR)/prjtrellis
+LIBTRELLIS_PREFIX=$(PRJTRELLIS_PREFIX)/libtrellis
+TRELLISDBDIR=$(PRJTRELLIS_PREFIX)/database
+TRELLIS_INSTALL_PREFIX=$(SELFDIR)/trellis
+PYTRELLIS=$(TRELLIS_INSTALL_PREFIX)/lib/trellis/pytrellis.so
+ECPPACK=$(TRELLIS_INSTALL_PREFIX)/bin/ecppack
+
 PRJXRAY_PREFIX=$(SELFDIR)/prjxray
 XRAYENV=$(SELFDIR)/prjxray_env.sh
 FASM2FRAMES=$(PRJXRAY_PREFIX)/utils/fasm2frames.py
@@ -36,7 +48,7 @@ MEGA65_TOOLS_DIR=$(SELFDIR)/mega65-tools
 BIT2CORE=$(MEGA65_TOOLS_DIR)/bin/bit2core
 
 all: force-amaranth $(GHDL_YOSYS_DEPEND) $(NEXTPNR_XILINX) $(XRAYDBDIR) $(XC7FRAMES2BIT) $(BIT2CORE)
-submodules: amaranth-submodule yosys-submodule prjxray-submodule nextpnr-xilinx-submodule ghdl-submodule ghdl-yosys-submodule mega65-tools-submodule
+submodules: amaranth-submodule amaranth-boards-submodule yosys-submodule prjtrellis-submodule prjxray-submodule nextpnr-submodule nextpnr-xilinx-submodule ghdl-submodule ghdl-yosys-submodule mega65-tools-submodule
 .PHONY: all
 
 install_dependencies:
@@ -45,16 +57,25 @@ install_dependencies:
 	python3 python3-pip python3-yaml python3-venv python3-virtualenv \
 	libboost-system-dev libboost-python-dev libboost-filesystem-dev \
 	libboost-thread-dev libboost-program-options-dev libboost-iostreams-dev \
-	zlib1g-dev qtbase5-dev libqt5gui5 libeigen3-dev ccache
+	zlib1g-dev qtbase5-dev libqt5gui5 libeigen3-dev ccache dfu-util
 
 # --- amaranth ---
 
 amaranth-submodule: $(AMARANTH_PREFIX)/setup.py
 $(AMARANTH_PREFIX)/setup.py:
-	( cd (SELFDIR) && git submodule update --init $(AMARANTH_PREFIX) )
+	( cd $(SELFDIR) && git submodule update --init $(AMARANTH_PREFIX) )
 
 force-amaranth: $(AMARANTH_PREFIX)/setup.py
 	( cd $(AMARANTH_PREFIX) && python3 -m pip install --editable . )
+
+# --- amaranth-boards ---
+
+amaranth-boards-submodule: $(AMARANTH_BOARDS_PREFIX)/setup.py
+$(AMARANTH_BOARDS_PREFIX)/setup.py:
+	( cd $(SEFLDIR) && git submodule update --init $(AMARANTH_BOARDS_PREFIX) )
+
+force-amaranth-boards: $(AMARANTH_BOARDS_PREFIX)/setup.py
+	( cd $(AMARANTH_BOARDS_PREFIX) && python3 -m pip install --editable . )
 
 # --- yosys ---
 
@@ -73,6 +94,26 @@ $(YOSYS_PREFIX)/Makefile.conf: $(YOSYS_PREFIX)/Makefile $(YOSYS_PREFIX)/frontend
 
 force-yosys $(YOSYS): $(YOSYS_PREFIX)/Makefile.conf
 	( cd $(YOSYS_PREFIX) && $(MAKE) )
+
+# --- prjtrellis ---
+
+prjtrellis-submodule: $(LIBTRELLIS_PREFIX)/CMakeLists.txt
+$(LIBTRELLIS_PREFIX)/CMakeLists.txt:
+	( cd $(SELFDIR) && git submodule update --init --recursive $(PRJTRELLIS_PREFIX) )
+
+$(LIBTRELLIS_PREFIX)/Makefile: $(LIBTRELLIS_PREFIX)/CMakeLists.txt
+	( cd $(LIBTRELLIS_PREFIX) && cmake -DCMAKE_INSTALL_PREFIX=$(TRELLIS_INSTALL_PREFIX) . )
+
+force-prjtrellis $(PYTRELLIS): $(LIBTRELLIS_PREFIX)/Makefile
+	( cd $(LIBTRELLIS_PREFIX) && $(MAKE) && $(MAKE) install )
+
+# To depend on this correctly, you must depend on
+# $(TRELLISDBDIR)/<FAMILY>/<PART>
+# example: $(TRELLISDBDIR)/ECP5/LFE5U-25F
+.PRECIOUS: $(TRELLISDBDIR)/%
+$(TRELLISDBDIR): $(LIBTRELLIS_PREFIX)/Makefile
+$(TRELLISDBDIR)/%: $(LIBTRELLIS_PREFIX)/Makefile
+	( cd $(PRJTRELLIS_PREFIX) && git submodule update --init $(TRELLISDBDIR) )
 
 # --- prjxray ---
 
@@ -96,6 +137,19 @@ $(XRAYENV): $(SELFDIR)/prjxray_settings.sh
 $(XRAYDBDIR): $(PRJXRAY_PREFIX)/Makefile
 $(XRAYDBDIR)/%: $(PRJXRAY_PREFIX)/Makefile
 	( cd $(PRJXRAY_PREFIX) && ./download-latest-db.sh )
+
+# --- nextpnr ---
+
+nextpnr-submodule: $(NEXTPNR_PREFIX)/CMakeLists.txt
+$(NEXTPNR_PREFIX)/CMakeLists.txt:
+	( cd $(SELFDIR) && git submodule update --init $(NEXTPNR_PREFIX) ) && \
+	( cd $(NEXTPNR_PREFIX) && git submodule update --init )
+
+$(NEXTPNR_PREFIX)/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS)
+	( cd $(NEXTPNR_PREFIX) && cmake -DARCH=ecp5 -DTRELLIS_INSTALL_PREFIX=$(TRELLIS_INSTALL_PREFIX) . )
+
+force-nextpnr-ecp5 $(NEXTPNR_ECP5): $(NEXTPNR_PREFIX)/Makefile
+	( cd $(NEXTPNR_PREFIX) && $(MAKE) )
 
 # --- nextpnr-xilinx ---
 
