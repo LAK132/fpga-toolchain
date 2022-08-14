@@ -72,7 +72,7 @@ force-amaranth: $(AMARANTH_PREFIX)/setup.py
 
 amaranth-boards-submodule: $(AMARANTH_BOARDS_PREFIX)/setup.py
 $(AMARANTH_BOARDS_PREFIX)/setup.py:
-	( cd $(SEFLDIR) && git submodule update --init $(AMARANTH_BOARDS_PREFIX) )
+	( cd $(SELFDIR) && git submodule update --init $(AMARANTH_BOARDS_PREFIX) )
 
 force-amaranth-boards: $(AMARANTH_BOARDS_PREFIX)/setup.py
 	( cd $(AMARANTH_BOARDS_PREFIX) && python3 -m pip install --editable . )
