@@ -1,4 +1,4 @@
 .vscode/**
 ignore/**
-trellis/**
+build/**
 prjxray_env.sh

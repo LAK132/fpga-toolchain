@@ -1,20 +1,16 @@
 # make blink.mega65r3.cor
 # make blink.orange-crab.bit
 
-include ../Makefile
+include Makefile.conf
+PREFIX?=/usr/local
+include $(PREFIX)/share/lakfpga/toolchain.mk
 
-BUILD_DIR=$(PWD)/build
-SOURCE_DIR=$(PWD)/source
-BOARDS_DIR=$(SOURCE_DIR)/boards
+$(eval $(call DECLARE_CORE,blink.mega65r3,\
+source/mega65r3.py,\
+artix7-xc7a200tfbg484-2,\
+))
 
-include ../board_def.mk
-
-$(eval $(call DECLARE_XILINX_BOARD, mega65r3, artix7, xc7, xc7a200tfbg484-2))
-$(eval $(call DECLARE_LATTICE_BOARD, orange-crab, ECP5, LFE5U-25F-8MG285C))
-
-$(eval $(call DECLARE_AMARANTH_CORE, \
-blink, "BLINK", "V1", \
-$(SOURCE_DIR)/blink.py, \
-$(wildcard $(SOURCE_DIR)/*.py)))
-
-include ../board_targets.mk
+$(eval $(call DECLARE_CORE,blink.orange-crab,\
+source/orange_crab.py,\
+,\
+))

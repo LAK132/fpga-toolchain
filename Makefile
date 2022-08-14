@@ -1,53 +1,55 @@
-ifeq ($(dir $(lastword $(MAKEFILE_LIST))),./)
-SELFDIR := $(abspath $(PWD))
-else
-SELFDIR := $(abspath $(PWD)/$(dir $(lastword $(MAKEFILE_LIST))))
-endif
+include toolchain.mk
+
+# --- Submodule locations ---
 
 AMARANTH_PREFIX=$(SELFDIR)/amaranth
-
 AMARANTH_BOARDS_PREFIX=$(SELFDIR)/amaranth-boards
-
-YOSYS_PREFIX=$(SELFDIR)/yosys
-YOSYS=$(YOSYS_PREFIX)/yosys
-
-NEXTPNR_PREFIX=$(SELFDIR)/nextpnr
-NEXTPNR_ECP5=$(NEXTPNR_PREFIX)/nextpnr-ecp5
-
-NEXTPNR_XILINX_PREFIX=$(SELFDIR)/nextpnr-xilinx
-NEXTPNR_XILINX=$(NEXTPNR_XILINX_PREFIX)/nextpnr-xilinx
-BBAEXPORT=$(NEXTPNR_XILINX_PREFIX)/xilinx/python/bbaexport.py
-BBASM=$(NEXTPNR_XILINX_PREFIX)/bbasm
-
+FASM2BIT_PREFIX=$(SELFDIR)/fasm2bit
 GHDL_PREFIX=$(SELFDIR)/ghdl
-GHDL_BUILD=$(GHDL_PREFIX)/build
-GHDL_MCODE=$(GHDL_PREFIX)/ghdl_mcode
-GHDL_BIN=$(GHDL_BUILD)/bin
-GHDL_LIB=$(GHDL_BUILD)/lib
-GHDL=$(GHDL_BIN)/ghdl
-
 GHDL_YOSYS_PLUGIN_PREFIX=$(SELFDIR)/ghdl-yosys-plugin
-
+MEGA65_TOOLS_PREFIX=$(SELFDIR)/mega65-tools
+NEXTPNR_PREFIX=$(SELFDIR)/nextpnr
+NEXTPNR_XILINX_PREFIX=$(SELFDIR)/nextpnr-xilinx
 PRJTRELLIS_PREFIX=$(SELFDIR)/prjtrellis
-LIBTRELLIS_PREFIX=$(PRJTRELLIS_PREFIX)/libtrellis
-TRELLISDBDIR=$(PRJTRELLIS_PREFIX)/database
-TRELLIS_INSTALL_PREFIX=$(SELFDIR)/trellis
-PYTRELLIS=$(TRELLIS_INSTALL_PREFIX)/lib/trellis/pytrellis.so
-ECPPACK=$(TRELLIS_INSTALL_PREFIX)/bin/ecppack
-
 PRJXRAY_PREFIX=$(SELFDIR)/prjxray
-XRAYENV=$(SELFDIR)/prjxray_env.sh
+YOSYS_PREFIX=$(SELFDIR)/yosys
+
+# ---
+
+FASM2BIT_BUILD=$(FASM2BIT_PREFIX)/build
+FASM2BIT=$(FASM2BIT_BUILD)/fasm2bit
+
+MEGA65_TOOLS_PREFIX=$(SELFDIR)/mega65-tools
+BIT2CORE=$(MEGA65_TOOLS_PREFIX)/bin/bit2core
+
+LIBTRELLIS_PREFIX=$(PRJTRELLIS_PREFIX)/libtrellis
+TRELLISDBDIR=$(SHAREDIR)/trellis/database
+PYTRELLIS=$(LIBDIR)/trellis/pytrellis.so
+
 FASM2FRAMES=$(PRJXRAY_PREFIX)/utils/fasm2frames.py
 FASM2FRAMES_SH=$(SELFDIR)/fasm2frames.sh
-XC7FRAMES2BIT=$(PRJXRAY_PREFIX)/build/tools/xc7frames2bit
-XRAYDBDIR=$(PRJXRAY_PREFIX)/database
 
-VIVADO_PREFIX=/opt/Xilinx
+LAKFPGA_PREFIX=$(SHAREDIR)/lakfpga
 
-MEGA65_TOOLS_DIR=$(SELFDIR)/mega65-tools
-BIT2CORE=$(MEGA65_TOOLS_DIR)/bin/bit2core
+ALL_TOOLS=\
+$(GHDL) \
+$(NEXTPNR_ECP5) \
+$(ECPPACK) \
+$(NEXTPNR_XILINX) \
+$(BBAEXPORT) \
+$(BBASM) \
+$(XC7FRAMES2BIT) \
+$(YOSYS)
 
-all: force-amaranth $(GHDL_YOSYS_DEPEND) $(NEXTPNR_XILINX) $(XRAYDBDIR) $(XC7FRAMES2BIT) $(BIT2CORE)
+ALL_DEPENDS=\
+$(ALL_TOOLS) \
+$(NEXTPNR_XILINX_META) \
+$(XRAYDBDIR) \
+$(XRAYENV)
+
+all:
+	make submodules && $(MAKE) tools-depend && make force-amaranth force-amaranth-boards
+tools-depend: $(ALL_DEPENDS) install-lakfpga
 submodules: amaranth-submodule amaranth-boards-submodule yosys-submodule prjtrellis-submodule prjxray-submodule nextpnr-submodule nextpnr-xilinx-submodule ghdl-submodule ghdl-yosys-submodule mega65-tools-submodule
 .PHONY: all
 
@@ -83,17 +85,23 @@ yosys-submodule: $(YOSYS_PREFIX)/Makefile
 $(YOSYS_PREFIX)/Makefile:
 	( cd $(SELFDIR) && git submodule update --init $(YOSYS_PREFIX) )
 
-$(YOSYS_PREFIX)/frontends/ghdl: | $(YOSYS_PREFIX)/frontends
+$(YOSYS_PREFIX)/frontends/ghdl: | $(YOSYS_PREFIX)/Makefile $(YOSYS_PREFIX)/frontends
 	mkdir -p $@
 
 $(YOSYS_PREFIX)/frontends/ghdl/%: $(GHDL_YOSYS_PLUGIN_PREFIX)/src/% | $(YOSYS_PREFIX)/frontends/ghdl
 	cp -f $< $@
 
-$(YOSYS_PREFIX)/Makefile.conf: $(YOSYS_PREFIX)/Makefile $(YOSYS_PREFIX)/frontends/ghdl/Makefile.inc $(YOSYS_PREFIX)/frontends/ghdl/ghdl.cc $(GHDL)
-	( cd $(YOSYS_PREFIX) && $(MAKE) config-gcc && echo 'ENABLE_CCACHE := 1' >> Makefile.conf && echo 'ENABLE_GHDL := 1' >> Makefile.conf && echo 'GHDL_PREFIX := $(GHDL_BUILD)' >> Makefile.conf && echo 'CXXFLAGS ?= -I"$(shell $(GHDL) --libghdl-include-dir)"' >> Makefile.conf )
+$(YOSYS_PREFIX)/Makefile.conf: $(YOSYS_PREFIX)/Makefile $(YOSYS_PREFIX)/frontends/ghdl/Makefile.inc $(YOSYS_PREFIX)/frontends/ghdl/ghdl.cc $(GHDL) Makefile.conf
+	( cd $(YOSYS_PREFIX) && \
+	 $(MAKE) config-gcc && \
+	 echo 'ENABLE_CCACHE := 1' >> Makefile.conf && \
+	 echo 'ENABLE_GHDL := 1' >> Makefile.conf && \
+	 echo 'PREFIX := $(INSTALL_PREFIX)' >> Makefile.conf && \
+	 echo 'GHDL_PREFIX := $(INSTALL_PREFIX)' >> Makefile.conf && \
+	 echo 'CXXFLAGS ?= -I"$(shell $(GHDL) --libghdl-include-dir)"' >> Makefile.conf )
 
 force-yosys $(YOSYS): $(YOSYS_PREFIX)/Makefile.conf
-	( cd $(YOSYS_PREFIX) && $(MAKE) )
+	( cd $(YOSYS_PREFIX) && $(MAKE) && $(MAKE) install)
 
 # --- prjtrellis ---
 
@@ -101,10 +109,10 @@ prjtrellis-submodule: $(LIBTRELLIS_PREFIX)/CMakeLists.txt
 $(LIBTRELLIS_PREFIX)/CMakeLists.txt:
 	( cd $(SELFDIR) && git submodule update --init --recursive $(PRJTRELLIS_PREFIX) )
 
-$(LIBTRELLIS_PREFIX)/Makefile: $(LIBTRELLIS_PREFIX)/CMakeLists.txt
-	( cd $(LIBTRELLIS_PREFIX) && cmake -DCMAKE_INSTALL_PREFIX=$(TRELLIS_INSTALL_PREFIX) . )
+$(LIBTRELLIS_PREFIX)/Makefile: $(LIBTRELLIS_PREFIX)/CMakeLists.txt Makefile.conf
+	( cd $(LIBTRELLIS_PREFIX) && cmake --clean-first -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
 
-force-prjtrellis $(PYTRELLIS): $(LIBTRELLIS_PREFIX)/Makefile
+force-prjtrellis $(PYTRELLIS) $(ECPPACK): $(LIBTRELLIS_PREFIX)/Makefile
 	( cd $(LIBTRELLIS_PREFIX) && $(MAKE) && $(MAKE) install )
 
 # To depend on this correctly, you must depend on
@@ -122,21 +130,40 @@ $(PRJXRAY_PREFIX)/Makefile:
 	( cd $(SELFDIR) && git submodule update --init $(PRJXRAY_PREFIX) ) && \
 	( cd $(PRJXRAY_PREFIX) && git submodule update --init --recursive )
 
-force-prjxray $(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
-	( cd $(PRJXRAY_PREFIX) && $(MAKE) build && $(MAKE) env )
+$(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
+	mkdir -p $@
 
-$(FASM2FRAMES): $(PRJXRAY_PREFIX)/build
-$(XC7FRAMES2BIT): $(PRJXRAY_PREFIX)/build
+$(PRJXRAY_PREFIX)/build/Makefile: Makefile.conf | $(PRJXRAY_PREFIX)/build
+	( cd $(PRJXRAY_PREFIX)/build && cmake --clean-first -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) .. )
 
-$(XRAYENV): $(SELFDIR)/prjxray_settings.sh
-	@echo "export XRAY_VIVADO_SETTINGS=$<;source $(PRJXRAY_PREFIX)/utils/environment.sh" > $@ && chmod +x $@
+force-prjxray $(XC7FRAMES2BIT) $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build/Makefile
+	( cd $(PRJXRAY_PREFIX) && ENV_DIR=$(INSTALL_PREFIX) $(MAKE) env && $(MAKE) install )
+
+$(XRAY_SHARE_DIR)/prjxray_settings.sh: $(SELFDIR)/prjxray_settings.sh | $(XRAY_SHARE_DIR)
+	cp -f $< $@
+
+$(XRAY_SHARE_DIR)/environment.sh: $(PRJXRAY_PREFIX)/utils/environment.sh | $(XRAY_SHARE_DIR)
+	cp -f $< $@
+
+$(XRAY_SHARE_DIR)/environment.python.sh: $(PRJXRAY_PREFIX)/utils/environment.python.sh | $(XRAY_SHARE_DIR)
+	cp -f $< $@
+
+$(XRAY_SHARE_DIR)/vivado.sh: $(PRJXRAY_PREFIX)/utils/vivado.sh | $(XRAY_SHARE_DIR)
+	cp -f $< $@
+
+$(XRAYENV): $(XRAY_SHARE_DIR)/prjxray_settings.sh $(XRAY_SHARE_DIR)/environment.sh $(XRAY_SHARE_DIR)/environment.python.sh $(XRAY_SHARE_DIR)/vivado.sh Makefile.conf
+	@echo "export XRAY_VIVADO_SETTINGS=$(XRAY_SHARE_DIR)/prjxray_settings.sh;source $(XRAY_SHARE_DIR)/environment.sh" > $@ && \
+	chmod +x $@
 
 # To depend on this correctly, you must depend on $(XRAYDBDIR)/<FAMILY>/<PART>
 # example: $(XRAYDBDIR)/artix7/xc7a100tcsg324-1
+.PRECIOUS: $(XRAY_SHARE_DIR)/%
 .PRECIOUS: $(XRAYDBDIR)/%
-$(XRAYDBDIR): $(PRJXRAY_PREFIX)/Makefile
-$(XRAYDBDIR)/%: $(PRJXRAY_PREFIX)/Makefile
-	( cd $(PRJXRAY_PREFIX) && ./download-latest-db.sh )
+$(XRAY_SHARE_DIR):
+	mkdir -p $@
+$(XRAYDBDIR): | $(XRAY_SHARE_DIR)
+	( cd $(XRAY_SHARE_DIR) && git clone https://github.com/SymbiFlow/prjxray-db database )
+$(XRAYDBDIR)/%: | $(XRAYDBDIR)
 
 # --- nextpnr ---
 
@@ -145,11 +172,11 @@ $(NEXTPNR_PREFIX)/CMakeLists.txt:
 	( cd $(SELFDIR) && git submodule update --init $(NEXTPNR_PREFIX) ) && \
 	( cd $(NEXTPNR_PREFIX) && git submodule update --init )
 
-$(NEXTPNR_PREFIX)/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS)
-	( cd $(NEXTPNR_PREFIX) && cmake -DARCH=ecp5 -DTRELLIS_INSTALL_PREFIX=$(TRELLIS_INSTALL_PREFIX) . )
+$(NEXTPNR_PREFIX)/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS) Makefile.conf
+	( cd $(NEXTPNR_PREFIX) && cmake --clean-first -DARCH=ecp5 -DTRELLIS_INSTALL_PREFIX=$(INSTALL_PREFIX) -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
 
 force-nextpnr-ecp5 $(NEXTPNR_ECP5): $(NEXTPNR_PREFIX)/Makefile
-	( cd $(NEXTPNR_PREFIX) && $(MAKE) )
+	( cd $(NEXTPNR_PREFIX) && $(MAKE) && $(MAKE) install )
 
 # --- nextpnr-xilinx ---
 
@@ -158,14 +185,43 @@ $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt:
 	( cd $(SELFDIR) && git submodule update --init $(NEXTPNR_XILINX_PREFIX) ) && \
 	( cd $(NEXTPNR_XILINX_PREFIX) && git submodule update --init )
 
-$(NEXTPNR_XILINX_PREFIX)/Makefile: $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt
-	( cd $(NEXTPNR_XILINX_PREFIX) && cmake -DARCH=xilinx . )
+$(NEXTPNR_XILINX_PREFIX)/Makefile: $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt Makefile.conf
+	( cd $(NEXTPNR_XILINX_PREFIX) && cmake --clean-first -DARCH=xilinx -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
 
 force-nextpnr-xilinx $(NEXTPNR_XILINX): $(NEXTPNR_XILINX_PREFIX)/Makefile
-	( cd $(NEXTPNR_XILINX_PREFIX) && $(MAKE) )
+	( cd $(NEXTPNR_XILINX_PREFIX) && $(MAKE) && $(MAKE) install )
 
-$(BBAEXPORT): $(NEXTPNR_XILINX)
-$(BBASM): $(NEXTPNR_XILINX)
+.PRECIOUS: $(NEXTPNR_XILINX_META)/%
+$(NEXTPNR_XILINX_META): | $(NEXTPNR_XILINX_SHARE)
+	( cd $(NEXTPNR_XILINX_SHARE) && git clone https://github.com/gatecat/nextpnr-xilinx-meta meta )
+$(NEXTPNR_XILINX_META)/%: | $(NEXTPNR_XILINX_META)
+
+$(NEXTPNR_XILINX_SHARE) $(NEXTPNR_XILINX_PYTHON):
+	mkdir -p $@
+
+BBAEXPORT_DEPENDS=\
+$(NEXTPNR_XILINX_PYTHON)/bba.py \
+$(NEXTPNR_XILINX_PYTHON)/bels.py \
+$(NEXTPNR_XILINX_PYTHON)/constid.py \
+$(NEXTPNR_XILINX_PYTHON)/nextpnr_structs.py \
+$(NEXTPNR_XILINX_PYTHON)/parse_sdf.py \
+$(NEXTPNR_XILINX_PYTHON)/tileconn.py \
+$(NEXTPNR_XILINX_PYTHON)/xilinx_device.py \
+$(NEXTPNR_XILINX_SHARE)/constids.inc
+
+$(BBAEXPORT): $(NEXTPNR_XILINX_PREFIX)/xilinx/python/bbaexport.py $(BBAEXPORT_DEPENDS) | $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt
+	cp -f $< $@
+
+$(NEXTPNR_XILINX_SHARE)/%: $(NEXTPNR_XILINX_PREFIX)/xilinx/% | $(NEXTPNR_XILINX_SHARE) $(NEXTPNR_XILINX_PYTHON) $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt
+	cp -f $< $@
+
+$(NEXTPNR_XILINX_PREFIX)/bbasm: $(NEXTPNR_XILINX)
+
+$(BBASM): $(NEXTPNR_XILINX_PREFIX)/bbasm
+	cp -f $< $@
+
+bbaexport: $(BBAEXPORT) $(NEXTPNR_XILINX_META)
+bbasm: $(BBASM)
 
 # --- ghdl ---
 
@@ -173,14 +229,11 @@ ghdl-submodule: $(GHDL_PREFIX)/configure
 $(GHDL_PREFIX)/configure:
 	( cd $(SELFDIR) && git submodule update --init $(GHDL_PREFIX) )
 
-$(GHDL_PREFIX)/Makefile: $(GHDL_PREFIX)/configure
-	( cd $(GHDL_PREFIX) && ./configure --prefix="$(GHDL_BUILD)" )
+$(GHDL_PREFIX)/Makefile: $(GHDL_PREFIX)/configure Makefile.conf
+	( cd $(GHDL_PREFIX) && ./configure --prefix="$(INSTALL_PREFIX)" )
 
-$(GHDL_MCODE): $(GHDL_PREFIX)/Makefile
-	( cd $(GHDL_PREFIX) && $(MAKE) OPT_FLAGS=-fPIC )
-
-force-ghdl $(GHDL): $(GHDL_MCODE)
-	( cd $(GHDL_PREFIX) && $(MAKE) install )
+force-ghdl $(GHDL): $(GHDL_PREFIX)/Makefile
+	( cd $(GHDL_PREFIX) && $(MAKE) OPT_FLAGS=-fPIC && $(MAKE) install )
 
 # --- ghdl-yosys-plugin ---
 
@@ -191,12 +244,26 @@ $(GHDL_YOSYS_PLUGIN_PREFIX)/src:
 
 # --- mega65-tools ---
 
-mega65-tools-submodule: $(MEGA65_TOOLS_DIR)/Makefile
-$(MEGA65_TOOLS_DIR)/Makefile:
-	( cd $(SELFDIR) && git submodule update --init $(MEGA65_TOOLS_DIR) )
+mega65-tools-submodule: $(MEGA65_TOOLS_PREFIX)/Makefile
+$(MEGA65_TOOLS_PREFIX)/Makefile:
+	( cd $(SELFDIR) && git submodule update --init $(MEGA65_TOOLS_PREFIX) )
 
-force-bit2core $(BIT2CORE): $(MEGA65_TOOLS_DIR)/Makefile
-	( cd $(MEGA65_TOOLS_DIR) && $(MAKE) bin/bit2core )
+force-bit2core $(BIT2CORE): $(MEGA65_TOOLS_PREFIX)/Makefile Makefile.conf
+	( cd $(MEGA65_TOOLS_PREFIX) && $(MAKE) bin/bit2core )
+
+# --- lakfpga ---
+
+$(LAKFPGA_PREFIX):
+	mkdir -p $@
+
+$(LAKFPGA_PREFIX)/%: $(SELFDIR)/% | $(LAKFPGA_PREFIX)
+	cp -f $< $@
+
+$(LAKFPGA_PREFIX)/Makefile.conf: Makefile.conf | $(LAKFPGA_PREFIX)
+	echo 'INSTALL_PREFIX=$(INSTALL_PREFIX)' >> $@ && \
+	echo 'VIVADO_PREFIX=$(VIVADO_PREFIX)' >> $@
+
+install-lakfpga: $(LAKFPGA_PREFIX)/Makefile.conf $(LAKFPGA_PREFIX)/toolchain.mk
 
 # --- clean ---
 
@@ -206,17 +273,23 @@ clean-ghdl:
 clean-ghdl-yosys:
 	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && $(MAKE) clean || echo 'ghdl-yosys clean failed' )
 
+clean-nextpnr:
+	( cd $(NEXTPNR_PREFIX) && $(MAKE) clean || echo 'nextpnr clean failed' )
+
+clean-prjtrellis:
+	( cd $(LIBTRELLIS_PREFIX) && $(MAKE) clean || echo 'prjtrellis clean failed' )
+
 clean-nextpnr-xilinx:
 	( cd $(NEXTPNR_XILINX_PREFIX) && $(MAKE) clean || echo 'nextpnr-xilinx clean failed' )
 
 clean-prjxray:
-	( cd $(PRJXRAY_PREFIX) && ( $(MAKE) clean ; ( cd database && $(MAKE) reset ) ) || echo 'prjxray clean failed' )
+	( cd $(PRJXRAY_PREFIX) && ( $(MAKE) clean ; ( cd $(XRAYDBDIR) && $(MAKE) reset ) ) || echo 'prjxray clean failed' )
 	rm -rf prjxray_env.sh
 
 clean-yosys:
 	( cd $(YOSYS_PREFIX) && ( $(MAKE) clean ; rm Makefile.conf ) || echo 'yosys clean failed' )
 
 clean-mega65-tools:
-	( cd $(MEGA65_TOOLS_DIR) && $(MAKE) clean || echo 'mega65-tools clean failed' )
+	( cd $(MEGA65_TOOLS_PREFIX) && $(MAKE) clean || echo 'mega65-tools clean failed' )
 
-clean: clean-ghdl clean-ghdl-yosys clean-yosys clean-nextpnr-xilinx clean-prjxray clean-mega65-tools
+clean: clean-ghdl clean-ghdl-yosys clean-yosys clean-nextpnr clean-prjtrellis clean-nextpnr-xilinx clean-prjxray clean-mega65-tools
