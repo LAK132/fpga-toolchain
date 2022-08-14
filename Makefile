@@ -110,7 +110,7 @@ $(LIBTRELLIS_PREFIX)/CMakeLists.txt:
 	( cd $(SELFDIR) && git submodule update --init --recursive $(PRJTRELLIS_PREFIX) )
 
 $(LIBTRELLIS_PREFIX)/Makefile: $(LIBTRELLIS_PREFIX)/CMakeLists.txt Makefile.conf
-	( cd $(LIBTRELLIS_PREFIX) && cmake --clean-first -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
+	( cd $(LIBTRELLIS_PREFIX) && cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
 
 force-prjtrellis $(PYTRELLIS) $(ECPPACK): $(LIBTRELLIS_PREFIX)/Makefile
 	( cd $(LIBTRELLIS_PREFIX) && $(MAKE) && $(MAKE) install )
@@ -134,7 +134,7 @@ $(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
 	mkdir -p $@
 
 $(PRJXRAY_PREFIX)/build/Makefile: Makefile.conf | $(PRJXRAY_PREFIX)/build
-	( cd $(PRJXRAY_PREFIX)/build && cmake --clean-first -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) .. )
+	( cd $(PRJXRAY_PREFIX)/build && cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) .. )
 
 force-prjxray $(XC7FRAMES2BIT) $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build/Makefile
 	( cd $(PRJXRAY_PREFIX) && ENV_DIR=$(INSTALL_PREFIX) $(MAKE) env && $(MAKE) install )
@@ -173,7 +173,7 @@ $(NEXTPNR_PREFIX)/CMakeLists.txt:
 	( cd $(NEXTPNR_PREFIX) && git submodule update --init )
 
 $(NEXTPNR_PREFIX)/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS) Makefile.conf
-	( cd $(NEXTPNR_PREFIX) && cmake --clean-first -DARCH=ecp5 -DTRELLIS_INSTALL_PREFIX=$(INSTALL_PREFIX) -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
+	( cd $(NEXTPNR_PREFIX) && cmake -DARCH=ecp5 -DTRELLIS_INSTALL_PREFIX=$(INSTALL_PREFIX) -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
 
 force-nextpnr-ecp5 $(NEXTPNR_ECP5): $(NEXTPNR_PREFIX)/Makefile
 	( cd $(NEXTPNR_PREFIX) && $(MAKE) && $(MAKE) install )
@@ -186,7 +186,7 @@ $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt:
 	( cd $(NEXTPNR_XILINX_PREFIX) && git submodule update --init )
 
 $(NEXTPNR_XILINX_PREFIX)/Makefile: $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt Makefile.conf
-	( cd $(NEXTPNR_XILINX_PREFIX) && cmake --clean-first -DARCH=xilinx -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
+	( cd $(NEXTPNR_XILINX_PREFIX) && cmake -DARCH=xilinx -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
 
 force-nextpnr-xilinx $(NEXTPNR_XILINX): $(NEXTPNR_XILINX_PREFIX)/Makefile
 	( cd $(NEXTPNR_XILINX_PREFIX) && $(MAKE) && $(MAKE) install )
