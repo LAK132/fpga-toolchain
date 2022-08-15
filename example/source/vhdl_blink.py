@@ -1,6 +1,6 @@
 from amaranth import *
 from pathlib import Path
-from open_xilinx_platform import GhdlInstance
+from amaranth.vendor.xilinx import GhdlInstance
 
 __all__ = ["VhdlBlink"]
 
