@@ -7,12 +7,12 @@ sudo make install_dependencies
 
 ### Tools
 ```
-make submodules && make all -j $(nproc)
+make all -j $(nproc)
 ```
 
 ### Example
 ```
-cd example && make blink.mega65r3.cor
+cd example && make blink.mega65r3
 ```
 
 # Somewhat Common Issues:
