@@ -136,8 +136,10 @@ force-deinit-prjtrellis-submodule:
 $(LIBTRELLIS_PREFIX)/Makefile: $(LIBTRELLIS_PREFIX)/CMakeLists.txt Makefile.conf
 	( cd $(LIBTRELLIS_PREFIX) && cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
 
-force-prjtrellis $(PYTRELLIS) $(ECPPACK): $(LIBTRELLIS_PREFIX)/Makefile
-	( cd $(LIBTRELLIS_PREFIX) && $(MAKE) && $(MAKE) install )
+force-prjtrellis $(PYTRELLIS): $(LIBTRELLIS_PREFIX)/Makefile
+	( cd $(LIBTRELLIS_PREFIX) && $(MAKE) -j1 && $(MAKE) -j1 install )
+
+$(ECPPACK): $(PYTRELLIS)
 
 # To depend on this correctly, you must depend on
 # $(TRELLISDBDIR)/<FAMILY>/<PART>
