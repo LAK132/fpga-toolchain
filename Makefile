@@ -26,9 +26,6 @@ LIBTRELLIS_PREFIX=$(PRJTRELLIS_PREFIX)/libtrellis
 TRELLISDBDIR=$(SHAREDIR)/trellis/database
 PYTRELLIS=$(LIBDIR)/trellis/pytrellis.so
 
-FASM2FRAMES=$(PRJXRAY_PREFIX)/utils/fasm2frames.py
-FASM2FRAMES_SH=$(SELFDIR)/fasm2frames.sh
-
 LAKFPGA_PREFIX=$(SHAREDIR)/lakfpga
 
 ALL_TOOLS=\
@@ -39,6 +36,7 @@ $(NEXTPNR_XILINX) \
 $(BBAEXPORT) \
 $(BBASM) \
 $(XC7FRAMES2BIT) \
+$(FASM2FRAMES) \
 $(YOSYS)
 
 ALL_DEPENDS=\
@@ -136,10 +134,8 @@ force-deinit-prjtrellis-submodule:
 $(LIBTRELLIS_PREFIX)/Makefile: $(LIBTRELLIS_PREFIX)/CMakeLists.txt Makefile.conf
 	( cd $(LIBTRELLIS_PREFIX) && cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
 
-force-prjtrellis $(PYTRELLIS): $(LIBTRELLIS_PREFIX)/Makefile
+force-prjtrellis $(ECPPACK) $(PYTRELLIS): $(LIBTRELLIS_PREFIX)/Makefile
 	( cd $(LIBTRELLIS_PREFIX) && $(MAKE) -j1 && $(MAKE) -j1 install )
-
-$(ECPPACK): $(PYTRELLIS)
 
 # To depend on this correctly, you must depend on
 # $(TRELLISDBDIR)/<FAMILY>/<PART>
@@ -165,8 +161,10 @@ $(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
 $(PRJXRAY_PREFIX)/build/Makefile: Makefile.conf | $(PRJXRAY_PREFIX)/build
 	( cd $(PRJXRAY_PREFIX)/build && cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) .. )
 
-force-prjxray $(XC7FRAMES2BIT) $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build/Makefile
-	( cd $(PRJXRAY_PREFIX) && ENV_DIR=$(INSTALL_PREFIX) $(MAKE) env && $(MAKE) install )
+force-prjxray $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build/Makefile
+	( cd $(PRJXRAY_PREFIX) && ENV_DIR=$(INSTALL_PREFIX) $(MAKE) -j1 env && $(MAKE) -j1 install )
+
+$(XC7FRAMES2BIT): $(FASM2FRAMES)
 
 $(XRAY_SHARE_DIR)/prjxray_settings.sh: $(SELFDIR)/prjxray_settings.sh | $(XRAY_SHARE_DIR)
 	cp -f $< $@
