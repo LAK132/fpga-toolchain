@@ -47,10 +47,22 @@ $(NEXTPNR_XILINX_META) \
 $(XRAYDBDIR) \
 $(XRAYENV)
 
-all:
-	make submodules && $(MAKE) tools-depend && make force-amaranth force-amaranth-boards
-tools-depend: $(ALL_DEPENDS) install-lakfpga
-submodules: amaranth-submodule amaranth-boards-submodule yosys-submodule prjtrellis-submodule prjxray-submodule nextpnr-submodule nextpnr-xilinx-submodule ghdl-submodule ghdl-yosys-submodule mega65-tools-submodule
+all: submodules
+	$(MAKE) $(ALL_DEPENDS) install-lakfpga && \
+	$(MAKE) -j1 force-amaranth force-amaranth-boards
+
+submodules:
+	$(MAKE) -j1 amaranth-submodule \
+	amaranth-boards-submodule \
+	yosys-submodule \
+	prjtrellis-submodule \
+	prjxray-submodule \
+	nextpnr-submodule \
+	nextpnr-xilinx-submodule \
+	ghdl-submodule \
+	ghdl-yosys-submodule \
+	mega65-tools-submodule
+
 .PHONY: all
 
 install_dependencies:
