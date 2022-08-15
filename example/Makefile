@@ -2,8 +2,8 @@
 # make blink.orange-crab.bit
 
 include Makefile.conf
-PREFIX?=/usr/local
-include $(PREFIX)/share/lakfpga/toolchain.mk
+TOOLCHAIN_PREFIX?=/usr/local
+include $(TOOLCHAIN_PREFIX)/share/lakfpga/toolchain.mk
 
 $(eval $(call DECLARE_CORE,blink.mega65r3,\
 source/mega65r3.py,\
