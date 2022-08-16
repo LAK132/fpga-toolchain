@@ -4,6 +4,12 @@ else
 SELFDIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 endif
 
+ifeq ($(SELFDIR),)
+$(error Failed to set SELFDIR. \
+	This may happen when running make with `sudo`, \
+	try `sudo -E` instead)
+endif
+
 include $(SELFDIR)/Makefile.conf
 
 INSTALL_PREFIX?=$(SELFDIR)/build

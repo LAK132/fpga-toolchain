@@ -30,13 +30,14 @@ LAKFPGA_PREFIX=$(SHAREDIR)/lakfpga
 
 ALL_TOOLS=\
 $(GHDL) \
-$(NEXTPNR_ECP5) \
 $(ECPPACK) \
-$(NEXTPNR_XILINX) \
 $(BBAEXPORT) \
 $(BBASM) \
 $(XC7FRAMES2BIT) \
 $(FASM2FRAMES) \
+$(NEXTPNR_ECP5) \
+$(NEXTPNR_ICE40) \
+$(NEXTPNR_XILINX) \
 $(YOSYS)
 
 ALL_DEPENDS=\
@@ -45,9 +46,8 @@ $(NEXTPNR_XILINX_META) \
 $(XRAYDBDIR) \
 $(XRAYENV)
 
-all: submodules
-	$(MAKE) $(ALL_DEPENDS) install-lakfpga && \
-	$(MAKE) -j1 force-amaranth force-amaranth-boards
+all:
+	$(foreach T,submodules $(ALL_DEPENDS) install-lakfpga force-amaranth force-amaranth-boards, ( $(MAKE) $T ) &&) echo ""
 
 submodules:
 	$(MAKE) -j1 amaranth-submodule \
@@ -73,36 +73,24 @@ install_dependencies:
 
 # --- amaranth ---
 
-amaranth-submodule: $(AMARANTH_PREFIX)/setup.py
 $(AMARANTH_PREFIX)/setup.py:
-	( cd $(SELFDIR) && git submodule update --init $(AMARANTH_PREFIX) )
-
-force-deinit-amaranth-submodule:
-	( cd $(SELFDIR) && git submodule deinit --force $(AMARANTH_PREFIX) )
+	$(MAKE) amaranth-submodule
 
 force-amaranth: $(AMARANTH_PREFIX)/setup.py
 	( cd $(AMARANTH_PREFIX) && python3 -m pip install --editable . )
 
 # --- amaranth-boards ---
 
-amaranth-boards-submodule: $(AMARANTH_BOARDS_PREFIX)/setup.py
 $(AMARANTH_BOARDS_PREFIX)/setup.py:
-	( cd $(SELFDIR) && git submodule update --init $(AMARANTH_BOARDS_PREFIX) )
-
-force-deinit-amaranth-boards-submodule:
-	( cd $(SELFDIR) && git submodule deinit --force $(AMARANTH_BOARDS_PREFIX) )
+	$(MAKE) amaranth-boards-submodule
 
 force-amaranth-boards: $(AMARANTH_BOARDS_PREFIX)/setup.py
 	( cd $(AMARANTH_BOARDS_PREFIX) && python3 -m pip install --editable . )
 
 # --- yosys ---
 
-yosys-submodule: $(YOSYS_PREFIX)/Makefile
 $(YOSYS_PREFIX)/Makefile:
-	( cd $(SELFDIR) && git submodule update --init $(YOSYS_PREFIX) )
-
-force-deinit-yosys-submodule:
-	( cd $(SELFDIR) && git submodule deinit --force $(YOSYS_PREFIX) )
+	$(MAKE) yosys-submodule
 
 $(YOSYS_PREFIX)/frontends/ghdl: | $(YOSYS_PREFIX)/Makefile $(YOSYS_PREFIX)/frontends
 	mkdir -p $@
@@ -113,7 +101,7 @@ $(YOSYS_PREFIX)/frontends/ghdl/%: $(GHDL_YOSYS_PLUGIN_PREFIX)/src/% | $(YOSYS_PR
 $(YOSYS_PREFIX)/Makefile.conf: $(YOSYS_PREFIX)/Makefile $(YOSYS_PREFIX)/frontends/ghdl/Makefile.inc $(YOSYS_PREFIX)/frontends/ghdl/ghdl.cc $(GHDL) Makefile.conf
 	( cd $(YOSYS_PREFIX) && \
 	 $(MAKE) config-gcc && \
-	 echo 'ENABLE_CCACHE := 1' >> Makefile.conf && \
+	 echo 'ENABLE_CCACHE := 1' > Makefile.conf && \
 	 echo 'ENABLE_GHDL := 1' >> Makefile.conf && \
 	 echo 'PREFIX := $(INSTALL_PREFIX)' >> Makefile.conf && \
 	 echo 'GHDL_PREFIX := $(INSTALL_PREFIX)' >> Makefile.conf && \
@@ -124,15 +112,13 @@ force-yosys $(YOSYS): $(YOSYS_PREFIX)/Makefile.conf
 
 # --- prjtrellis ---
 
-prjtrellis-submodule: $(LIBTRELLIS_PREFIX)/CMakeLists.txt
-$(LIBTRELLIS_PREFIX)/CMakeLists.txt:
-	( cd $(SELFDIR) && git submodule update --init --recursive $(PRJTRELLIS_PREFIX) )
+PRJTRELLIS_SUBMODULE_INIT_ARGS:=--recursive
 
-force-deinit-prjtrellis-submodule:
-	( cd $(SELFDIR) && git submodule deinit --force $(PRJTRELLIS_PREFIX) )
+$(LIBTRELLIS_PREFIX)/CMakeLists.txt:
+	$(MAKE) prjtrellis-submodule
 
 $(LIBTRELLIS_PREFIX)/Makefile: $(LIBTRELLIS_PREFIX)/CMakeLists.txt Makefile.conf
-	( cd $(LIBTRELLIS_PREFIX) && cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
+	( cd $(LIBTRELLIS_PREFIX) && cmake -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
 
 force-prjtrellis $(PYTRELLIS): $(LIBTRELLIS_PREFIX)/Makefile
 	( cd $(LIBTRELLIS_PREFIX) && $(MAKE) -j1 && $(MAKE) -j1 install )
@@ -149,22 +135,19 @@ $(TRELLISDBDIR)/%: $(LIBTRELLIS_PREFIX)/Makefile
 
 # --- prjxray ---
 
-prjxray-submodule: $(PRJXRAY_PREFIX)/Makefile
-$(PRJXRAY_PREFIX)/Makefile:
-	( cd $(SELFDIR) && git submodule update --init $(PRJXRAY_PREFIX) ) && \
-	( cd $(PRJXRAY_PREFIX) && git submodule update --init --recursive )
+PRJXRAY_SUBMODULE_INIT_ARGS:=--recursive
 
-force-deinit-prjxray-submodule:
-	( cd $(SELFDIR) && git submodule deinit --force $(PRJXRAY_PREFIX) )
+$(PRJXRAY_PREFIX)/Makefile:
+	$(MAKE) prjxray-submodule
 
 $(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
 	mkdir -p $@
 
-$(PRJXRAY_PREFIX)/build/Makefile: Makefile.conf | $(PRJXRAY_PREFIX)/build
-	( cd $(PRJXRAY_PREFIX)/build && cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) .. )
+$(PRJXRAY_PREFIX)/build/Makefile: $(PRJXRAY_PREFIX)/CMakeLists.txt Makefile.conf | $(PRJXRAY_PREFIX)/build
+	( cd $(PRJXRAY_PREFIX)/build && cmake -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" .. )
 
 force-prjxray $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build/Makefile
-	( cd $(PRJXRAY_PREFIX) && ENV_DIR=$(INSTALL_PREFIX) $(MAKE) -j1 env && $(MAKE) -j1 install )
+	( cd $(PRJXRAY_PREFIX) && ENV_DIR="$(INSTALL_PREFIX)" $(MAKE) -j1 env && $(MAKE) -j1 install )
 
 $(XC7FRAMES2BIT): $(FASM2FRAMES)
 
@@ -196,32 +179,29 @@ $(XRAYDBDIR)/%: | $(XRAYDBDIR)
 
 # --- nextpnr ---
 
-nextpnr-submodule: $(NEXTPNR_PREFIX)/CMakeLists.txt
+NEXTPNR_SUBMODULE_INIT_ARGS:=--recursive
+NEXTPNR_PYTHON?=OFF
+
 $(NEXTPNR_PREFIX)/CMakeLists.txt:
-	( cd $(SELFDIR) && git submodule update --init $(NEXTPNR_PREFIX) ) && \
-	( cd $(NEXTPNR_PREFIX) && git submodule update --init )
+	$(MAKE) nextpnr-submodule
 
-force-deinit-nextpnr-submodule:
-	( cd $(SELFDIR) && git submodule deinit --force $(NEXTPNR_PREFIX) )
+$(NEXTPNR_PREFIX)/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS) $(ICEPACK) Makefile.conf
+	( cd $(NEXTPNR_PREFIX) && cmake -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ecp5" -DTRELLIS_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
 
-$(NEXTPNR_PREFIX)/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS) Makefile.conf
-	( cd $(NEXTPNR_PREFIX) && cmake -DARCH=ecp5 -DTRELLIS_INSTALL_PREFIX=$(INSTALL_PREFIX) -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
+force-nextpnr $(NEXTPNR_ECP5): $(NEXTPNR_PREFIX)/Makefile
+	( cd $(NEXTPNR_PREFIX) && $(MAKE) && $(MAKE) -j1 install )
 
-force-nextpnr-ecp5 $(NEXTPNR_ECP5): $(NEXTPNR_PREFIX)/Makefile
-	( cd $(NEXTPNR_PREFIX) && $(MAKE) && $(MAKE) install )
+$(NEXTPNR_ICE40): $(NEXTPNR_ECP5)
 
 # --- nextpnr-xilinx ---
 
-nextpnr-xilinx-submodule: $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt
-$(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt:
-	( cd $(SELFDIR) && git submodule update --init $(NEXTPNR_XILINX_PREFIX) ) && \
-	( cd $(NEXTPNR_XILINX_PREFIX) && git submodule update --init )
+NEXTPNR_XILINX_SUBMODULE_INIT_ARGS:=--recursive
 
-force-deinit-nextpnr-xilinx-submodule:
-	( cd $(SELFDIR) && git submodule deinit --force $(NEXTPNR_XILINX_PREFIX) )
+$(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt:
+	$(MAKE) nextpnr-xilinx-submodule
 
 $(NEXTPNR_XILINX_PREFIX)/Makefile: $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt Makefile.conf
-	( cd $(NEXTPNR_XILINX_PREFIX) && cmake -DARCH=xilinx -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX) . )
+	( cd $(NEXTPNR_XILINX_PREFIX) && cmake -DEXTERNAL_DB=ON -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH=xilinx -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
 
 force-nextpnr-xilinx $(NEXTPNR_XILINX): $(NEXTPNR_XILINX_PREFIX)/Makefile
 	( cd $(NEXTPNR_XILINX_PREFIX) && $(MAKE) && $(MAKE) install )
@@ -260,12 +240,8 @@ bbasm: $(BBASM)
 
 # --- ghdl ---
 
-ghdl-submodule: $(GHDL_PREFIX)/configure
 $(GHDL_PREFIX)/configure:
-	( cd $(SELFDIR) && git submodule update --init $(GHDL_PREFIX) )
-
-force-deinit-ghdl-submodule:
-	( cd $(SELFDIR) && git submodule deinit --force $(GHDL_PREFIX) )
+	$(MAKE) ghdl-submodule
 
 $(GHDL_PREFIX)/Makefile: $(GHDL_PREFIX)/configure Makefile.conf
 	( cd $(GHDL_PREFIX) && ./configure --prefix="$(INSTALL_PREFIX)" )
@@ -275,22 +251,14 @@ force-ghdl $(GHDL): $(GHDL_PREFIX)/Makefile
 
 # --- ghdl-yosys-plugin ---
 
-ghdl-yosys-submodule: $(GHDL_YOSYS_PLUGIN_PREFIX)/src
 $(GHDL_YOSYS_PLUGIN_PREFIX)/src/%: | $(GHDL_YOSYS_PLUGIN_PREFIX)/src
 $(GHDL_YOSYS_PLUGIN_PREFIX)/src:
-	( cd $(SELFDIR) && git submodule update --init $(GHDL_YOSYS_PLUGIN_PREFIX) )
-
-force-deinit-ghdl-yosys-submodule:
-	( cd $(SELFDIR) && git submodule deinit --force $(GHDL_YOSYS_PLUGIN_PREFIX) )
+	$(MAKE) ghdl-yosys-submodule
 
 # --- mega65-tools ---
 
-mega65-tools-submodule: $(MEGA65_TOOLS_PREFIX)/Makefile
 $(MEGA65_TOOLS_PREFIX)/Makefile:
-	( cd $(SELFDIR) && git submodule update --init $(MEGA65_TOOLS_PREFIX) )
-
-force-deinit-mega65-tools-submodule:
-	( cd $(SELFDIR) && git submodule deinit --force $(MEGA65_TOOLS_PREFIX) )
+	$(MAKE) mega65-tools-submodule
 
 force-bit2core $(BIT2CORE): $(MEGA65_TOOLS_PREFIX)/Makefile Makefile.conf
 	( cd $(MEGA65_TOOLS_PREFIX) && $(MAKE) bin/bit2core )
@@ -304,39 +272,29 @@ $(LAKFPGA_PREFIX)/%: $(SELFDIR)/% | $(LAKFPGA_PREFIX)
 	cp -f $< $@
 
 $(LAKFPGA_PREFIX)/Makefile.conf: Makefile.conf | $(LAKFPGA_PREFIX)
-	echo 'INSTALL_PREFIX=$(INSTALL_PREFIX)' >> $@ && \
-	echo 'VIVADO_PREFIX=$(VIVADO_PREFIX)' >> $@
+	echo 'INSTALL_PREFIX:=$(INSTALL_PREFIX)' > $@ && \
+	echo 'VIVADO_PREFIX:=$(VIVADO_PREFIX)' >> $@
 
 install-lakfpga: $(LAKFPGA_PREFIX)/Makefile.conf $(LAKFPGA_PREFIX)/toolchain.mk
 
+# --- pattern targets ---
+
+STEM=$(shell echo '$*' | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+
+force-rebuild-%:
+	$(MAKE) -j1 force-deinit-$*-submodule && \
+	$(MAKE) -j1 $*-submodule && \
+	$(MAKE) force-$*
+
+%-submodule:
+	$(warning init submodule for $* at $($(STEM)_PREFIX))
+	( cd $(SELFDIR) && git submodule update --init $($(STEM)_SUBMODULE_INIT_ARGS) $($(STEM)_PREFIX) )
+
+force-deinit-%-submodule:
+	$(warning deinit submodule for $* at $($(STEM)_PREFIX))
+	( cd $(SELFDIR) && git submodule deinit --force $($(STEM)_PREFIX) )
+
 # --- clean ---
-
-clean-ghdl:
-	( cd $(GHDL_PREFIX) && ( $(MAKE) clean ; git clean -xdf ) || echo 'ghdl clean failed' )
-
-clean-ghdl-yosys:
-	( cd $(GHDL_YOSYS_PLUGIN_PREFIX) && $(MAKE) clean || echo 'ghdl-yosys clean failed' )
-
-clean-nextpnr:
-	( cd $(NEXTPNR_PREFIX) && $(MAKE) clean || echo 'nextpnr clean failed' )
-
-clean-prjtrellis:
-	( cd $(LIBTRELLIS_PREFIX) && $(MAKE) clean || echo 'prjtrellis clean failed' )
-
-clean-nextpnr-xilinx:
-	( cd $(NEXTPNR_XILINX_PREFIX) && $(MAKE) clean || echo 'nextpnr-xilinx clean failed' )
-
-clean-prjxray:
-	( cd $(PRJXRAY_PREFIX) && ( $(MAKE) clean ; ( cd $(XRAYDBDIR) && $(MAKE) reset ) ) || echo 'prjxray clean failed' )
-	rm -rf prjxray_env.sh
-
-clean-yosys:
-	( cd $(YOSYS_PREFIX) && ( $(MAKE) clean ; rm Makefile.conf ) || echo 'yosys clean failed' )
-
-clean-mega65-tools:
-	( cd $(MEGA65_TOOLS_PREFIX) && $(MAKE) clean || echo 'mega65-tools clean failed' )
-
-clean: clean-ghdl clean-ghdl-yosys clean-yosys clean-nextpnr clean-prjtrellis clean-nextpnr-xilinx clean-prjxray clean-mega65-tools
 
 force-deinit-submodules:
 	$(MAKE) -j1 force-deinit-amaranth-submodule \
@@ -347,10 +305,13 @@ force-deinit-submodules:
 	force-deinit-nextpnr-submodule \
 	force-deinit-nextpnr-xilinx-submodule \
 	force-deinit-ghdl-submodule \
-	force-deinit-ghdl-yosys-submodule \
+	force-deinit-ghdl-yosys-plugin-submodule \
 	force-deinit-mega65-tools-submodule
 
 hard-reset: force-deinit-submodules
 ifeq ($(INSTALL_PREFIX),$(SELFDIR)/build)
 	rm -rf $(SELFDIR)/build
 endif
+
+force-rebuild-all: hard-reset
+	$(MAKE) all
