@@ -46,3 +46,7 @@
 	path = amaranth-boards
 	url = https://github.com/LAK132/amaranth-boards
 	ignore = dirty
+[submodule "icestorm"]
+	path = icestorm
+	url = https://github.com/YosysHQ/icestorm
+	ignore = dirty
