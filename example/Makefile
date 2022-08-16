@@ -14,3 +14,8 @@ $(eval $(call DECLARE_CORE,blink.orange-crab,\
 source/orange_crab.py,\
 ,\
 ))
+
+$(eval $(call DECLARE_CORE,blink.tinyfpga-bx,\
+source/tinyfpga_bx.py,\
+,\
+))

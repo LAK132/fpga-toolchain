@@ -21,7 +21,10 @@ SHAREDIR=$(INSTALL_PREFIX)/share
 
 GHDL=$(BINDIR)/ghdl
 
+ICEPACK=$(BINDIR)/icepack
+
 NEXTPNR_ECP5=$(BINDIR)/nextpnr-ecp5
+NEXTPNR_ICE40=$(BINDIR)/nextpnr-ice40
 
 ECPPACK=$(BINDIR)/ecppack
 
@@ -54,6 +57,8 @@ $1: $2 $3 | $$(YOSYS) $$(NEXTPNR_XILINX) $$(NEXTPNR_ECP5) $$(ECPPACK)
 	AMARANTH_xc7frames2bit_opts="--compressed" \
 	NEXTPNR_ECP5="$$(NEXTPNR_ECP5)"\
 	ECPPACK="$$(ECPPACK)" \
+	NEXTPNR_ICE40="$$(NEXTPNR_ICE40)" \
+	ICEPACK="$$(ICEPACK)" \
 	python3 $$<
 endef
 

@@ -7,6 +7,7 @@ AMARANTH_BOARDS_PREFIX=$(SELFDIR)/amaranth-boards
 FASM2BIT_PREFIX=$(SELFDIR)/fasm2bit
 GHDL_PREFIX=$(SELFDIR)/ghdl
 GHDL_YOSYS_PLUGIN_PREFIX=$(SELFDIR)/ghdl-yosys-plugin
+ICESTORM_PREFIX=$(SELFDIR)/icestorm
 MEGA65_TOOLS_PREFIX=$(SELFDIR)/mega65-tools
 NEXTPNR_PREFIX=$(SELFDIR)/nextpnr
 NEXTPNR_XILINX_PREFIX=$(SELFDIR)/nextpnr-xilinx
@@ -31,6 +32,7 @@ LAKFPGA_PREFIX=$(SHAREDIR)/lakfpga
 ALL_TOOLS=\
 $(GHDL) \
 $(ECPPACK) \
+$(ICEPACK) \
 $(BBAEXPORT) \
 $(BBASM) \
 $(XC7FRAMES2BIT) \
@@ -69,7 +71,7 @@ install_dependencies:
 	python3 python3-pip python3-yaml python3-venv python3-virtualenv \
 	libboost-system-dev libboost-python-dev libboost-filesystem-dev \
 	libboost-thread-dev libboost-program-options-dev libboost-iostreams-dev \
-	zlib1g-dev qtbase5-dev libqt5gui5 libeigen3-dev ccache dfu-util
+	zlib1g-dev qtbase5-dev libqt5gui5 libeigen3-dev ccache dfu-util libftdi-dev
 
 # --- amaranth ---
 
@@ -133,6 +135,16 @@ $(TRELLISDBDIR): $(LIBTRELLIS_PREFIX)/Makefile
 $(TRELLISDBDIR)/%: $(LIBTRELLIS_PREFIX)/Makefile
 	( cd $(PRJTRELLIS_PREFIX) && git submodule update --init $(TRELLISDBDIR) )
 
+# --- icestorm ---
+
+ICESTORM_SUBMODULE_INIT_ARGS:=--recursive
+
+$(ICESTORM_PREFIX)/Makefile:
+	$(MAKE) icestorm-submodule
+
+force-icestorm $(ICEPACK): $(ICESTORM_PREFIX)/Makefile
+	( cd $(ICESTORM_PREFIX) && PREFIX="$(INSTALL_PREFIX)" $(MAKE) && PREFIX="$(INSTALL_PREFIX)" $(MAKE) -j1 install )
+
 # --- prjxray ---
 
 PRJXRAY_SUBMODULE_INIT_ARGS:=--recursive
@@ -186,7 +198,7 @@ $(NEXTPNR_PREFIX)/CMakeLists.txt:
 	$(MAKE) nextpnr-submodule
 
 $(NEXTPNR_PREFIX)/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS) $(ICEPACK) Makefile.conf
-	( cd $(NEXTPNR_PREFIX) && cmake -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ecp5" -DTRELLIS_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
+	( cd $(NEXTPNR_PREFIX) && cmake -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ecp5;ice40" -DICESTORM_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DTRELLIS_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
 
 force-nextpnr $(NEXTPNR_ECP5): $(NEXTPNR_PREFIX)/Makefile
 	( cd $(NEXTPNR_PREFIX) && $(MAKE) && $(MAKE) -j1 install )
