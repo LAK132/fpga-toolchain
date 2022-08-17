@@ -21,7 +21,6 @@ FASM2BIT_BUILD=$(FASM2BIT_PREFIX)/build
 FASM2BIT=$(FASM2BIT_BUILD)/fasm2bit
 
 MEGA65_TOOLS_PREFIX=$(SELFDIR)/mega65-tools
-BIT2CORE=$(MEGA65_TOOLS_PREFIX)/bin/bit2core
 
 LIBTRELLIS_PREFIX=$(PRJTRELLIS_PREFIX)/libtrellis
 TRELLISDBDIR=$(SHAREDIR)/trellis/database
@@ -37,6 +36,7 @@ $(BBAEXPORT) \
 $(BBASM) \
 $(XC7FRAMES2BIT) \
 $(FASM2FRAMES) \
+$(BIT2CORE) \
 $(NEXTPNR_ECP5) \
 $(NEXTPNR_ICE40) \
 $(NEXTPNR_XILINX) \
@@ -72,6 +72,9 @@ install_dependencies:
 	libboost-system-dev libboost-python-dev libboost-filesystem-dev \
 	libboost-thread-dev libboost-program-options-dev libboost-iostreams-dev \
 	zlib1g-dev qtbase5-dev libqt5gui5 libeigen3-dev ccache dfu-util libftdi-dev
+
+test:
+	( cd example && $(MAKE) -j1 clean && $(MAKE) -j1 all )
 
 # --- amaranth ---
 
@@ -272,8 +275,11 @@ $(GHDL_YOSYS_PLUGIN_PREFIX)/src:
 $(MEGA65_TOOLS_PREFIX)/Makefile:
 	$(MAKE) mega65-tools-submodule
 
-force-bit2core $(BIT2CORE): $(MEGA65_TOOLS_PREFIX)/Makefile Makefile.conf
+$(MEGA65_TOOLS_PREFIX)/bin/bit2core: $(MEGA65_TOOLS_PREFIX)/Makefile Makefile.conf
 	( cd $(MEGA65_TOOLS_PREFIX) && $(MAKE) bin/bit2core )
+
+force-bit2core $(BIT2CORE): $(MEGA65_TOOLS_PREFIX)/bin/bit2core
+	cp -f $< $(BIT2CORE)
 
 # --- lakfpga ---
 

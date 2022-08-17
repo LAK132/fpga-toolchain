@@ -14,6 +14,7 @@ include $(SELFDIR)/Makefile.conf
 
 INSTALL_PREFIX?=$(SELFDIR)/build
 VIVADO_PREFIX?=/opt/Xilinx
+AMARANTH_OUTPUT_DIR?=build
 
 BINDIR=$(INSTALL_PREFIX)/bin
 LIBDIR=$(INSTALL_PREFIX)/lib
@@ -22,6 +23,8 @@ SHAREDIR=$(INSTALL_PREFIX)/share
 GHDL=$(BINDIR)/ghdl
 
 ICEPACK=$(BINDIR)/icepack
+
+BIT2CORE=$(BINDIR)/bit2core
 
 NEXTPNR_ECP5=$(BINDIR)/nextpnr-ecp5
 NEXTPNR_ICE40=$(BINDIR)/nextpnr-ice40
@@ -45,8 +48,20 @@ NEXTPNRDBDIR=$(XRAY_SHARE_DIR)/build
 YOSYS=$(BINDIR)/yosys
 
 define DECLARE_CORE=
-$1: $2 $3 | $$(YOSYS) $$(NEXTPNR_XILINX) $$(NEXTPNR_ECP5) $$(ECPPACK)
-	$4 \
+$(strip $1).$(strip $2)$(strip $3): build/$(strip $1)/$(strip $2)/$(AMARANTH_OUTPUT_DIR)/top$(strip $3)
+	cp -f $$< $$@
+
+build/$(strip $1)/$(strip $2):
+	mkdir -p $$@
+
+build/$(strip $1)/$(strip $2)/$(AMARANTH_OUTPUT_DIR)/top$(strip $3): \
+$4 $5 | build/$(strip $1)/$(strip $2) \
+$$(YOSYS) \
+$$(NEXTPNR_XILINX) $$(XRAYENV) $$(FASM2FRAMES) $$(XC7FRAMES2BIT) \
+$$(NEXTPNR_ECP5) $$(ECPPACK) \
+$$(NEXTPNR_ICE40) $$(ICEPACK)
+	( cd build/$(strip $1)/$(strip $2) && \
+	$6 \
 	YOSYS="$$(YOSYS)" \
 	NEXTPNR_XILINX="$$(NEXTPNR_XILINX)" \
 	AMARANTH_ENV_YOSYS_NEXTPNR="$$(XRAYENV)" \
@@ -59,7 +74,7 @@ $1: $2 $3 | $$(YOSYS) $$(NEXTPNR_XILINX) $$(NEXTPNR_ECP5) $$(ECPPACK)
 	ECPPACK="$$(ECPPACK)" \
 	NEXTPNR_ICE40="$$(NEXTPNR_ICE40)" \
 	ICEPACK="$$(ICEPACK)" \
-	python3 $$<
+	python3 $$(abspath $$<) )
 endef
 
 # --- Xilinx specific targets ---

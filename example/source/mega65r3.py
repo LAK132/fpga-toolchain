@@ -16,7 +16,5 @@ if __name__ == "__main__":
     import os
     Mega65r3Platform(toolchain="yosys_nextpnr").build(
         Top(),
-        name="blink",
-        build_dir="build/mega65r3",
         do_build=True,
         do_program=False)
