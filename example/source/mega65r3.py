@@ -1,13 +1,13 @@
-from amaranth_blink import *
+from torii_blink import *
 from vhdl_blink import *
-from amaranth import *
-from amaranth_boards.mega65_r3 import *
+from torii import *
+from torii_boards.mega65 import *
 
 
 class Top(Elaboratable):
     def elaborate(self, platform):
         m = Module()
-        m.submodules += AmaranthBlink()
+        m.submodules += ToriiBlink()
         m.submodules += VhdlBlink()
         return m
 

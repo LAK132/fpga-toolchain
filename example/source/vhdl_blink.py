@@ -1,6 +1,6 @@
-from amaranth import *
+from torii import *
 from pathlib import Path
-from amaranth.vendor.xilinx import GhdlInstance
+from torii.vendor.xilinx import GhdlInstance
 
 __all__ = ["VhdlBlink"]
 

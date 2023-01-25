@@ -9,9 +9,9 @@ include $(TOOLCHAIN_PREFIX)/share/lakfpga/toolchain.mk
 # 1: Target board name
 # 2: Bitstream name
 # 3: Bitstream suffix
-# 4: Amaranth script (.py) to run
+# 4: Torii script (.py) to run
 # 5: Optional Makefile build dependencies
-# 6: Optional Amaranth environment arguments (WX="AB" YZ="CD" etc)
+# 6: Optional Torii environment arguments (WX="AB" YZ="CD" etc)
 
 $(eval $(call DECLARE_CORE,\
 mega65r3,\
@@ -41,4 +41,4 @@ mega65r3.%.cor: mega65r3.%.bit Makefile.conf | $(BIT2CORE)
 	$(BIT2CORE) mega65r3 $< $* "V1" $@
 
 clean:
-	rm -rf $(AMARANTH_OUTPUT_DIR)
+	rm -rf $(TORII_OUTPUT_DIR)

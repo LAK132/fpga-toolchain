@@ -2,8 +2,8 @@ include toolchain.mk
 
 # --- Submodule locations ---
 
-AMARANTH_PREFIX=$(SELFDIR)/amaranth
-AMARANTH_BOARDS_PREFIX=$(SELFDIR)/amaranth-boards
+TORII_HDL_PREFIX=$(SELFDIR)/torii-hdl
+TORII_BOARDS_PREFIX=$(SELFDIR)/torii-boards
 FASM2BIT_PREFIX=$(SELFDIR)/fasm2bit
 GHDL_PREFIX=$(SELFDIR)/ghdl
 GHDL_YOSYS_PLUGIN_PREFIX=$(SELFDIR)/ghdl-yosys-plugin
@@ -49,11 +49,12 @@ $(XRAYDBDIR) \
 $(XRAYENV)
 
 all:
-	$(foreach T,submodules $(ALL_DEPENDS) install-lakfpga force-amaranth force-amaranth-boards, ( $(MAKE) $T ) &&) echo ""
+	$(foreach T,submodules $(ALL_DEPENDS) install-lakfpga force-torii-hdl force-torii-boards, ( $(MAKE) $T ) &&) echo ""
 
 submodules:
-	$(MAKE) -j1 amaranth-submodule \
-	amaranth-boards-submodule \
+	$(MAKE) -j1 \
+	torii-hdl-submodule \
+	torii-boards-submodule \
 	yosys-submodule \
 	prjtrellis-submodule \
 	prjxray-submodule \
@@ -76,21 +77,26 @@ install_dependencies:
 test:
 	( cd example && $(MAKE) -j1 clean && $(MAKE) -j1 all )
 
-# --- amaranth ---
+# --- python venv ---
 
-$(AMARANTH_PREFIX)/setup.py:
-	$(MAKE) amaranth-submodule
+force-venv $(ACTIVATE_VENV):
+	( cd $(SELFDIR) && python3 -m venv --copies --upgrade $(INSTALL_PREFIX) )
 
-force-amaranth: $(AMARANTH_PREFIX)/setup.py
-	( cd $(AMARANTH_PREFIX) && python3 -m pip install --editable . )
+# --- torii-hdl ---
 
-# --- amaranth-boards ---
+$(TORII_HDL_PREFIX)/setup.py:
+	$(MAKE) torii-hdl-submodule
 
-$(AMARANTH_BOARDS_PREFIX)/setup.py:
-	$(MAKE) amaranth-boards-submodule
+force-torii-hdl: $(TORII_HDL_PREFIX)/setup.py $(ACTIVATE_VENV)
+	( cd $(TORII_HDL_PREFIX) && . $(ACTIVATE_VENV) && python3 -m pip install --editable . )
 
-force-amaranth-boards: $(AMARANTH_BOARDS_PREFIX)/setup.py
-	( cd $(AMARANTH_BOARDS_PREFIX) && python3 -m pip install --editable . )
+# --- torii-boards ---
+
+$(TORII_BOARDS_PREFIX)/setup.py:
+	$(MAKE) torii-boards-submodule
+
+force-torii-boards: $(TORII_BOARDS_PREFIX)/setup.py $(ACTIVATE_VENV)
+	( cd $(TORII_BOARDS_PREFIX) && . $(ACTIVATE_VENV) && python3 -m pip install --editable . )
 
 # --- yosys ---
 
@@ -161,7 +167,7 @@ $(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
 $(PRJXRAY_PREFIX)/build/Makefile: $(PRJXRAY_PREFIX)/CMakeLists.txt Makefile.conf | $(PRJXRAY_PREFIX)/build
 	( cd $(PRJXRAY_PREFIX)/build && cmake -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" .. )
 
-force-prjxray $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build/Makefile
+force-prjxray $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build/Makefile $(ACTIVATE_VENV)
 	( cd $(PRJXRAY_PREFIX) && ENV_DIR="$(INSTALL_PREFIX)" $(MAKE) -j1 env && $(MAKE) -j1 install )
 
 $(XC7FRAMES2BIT): $(FASM2FRAMES)
@@ -315,8 +321,9 @@ force-deinit-%-submodule:
 # --- clean ---
 
 force-deinit-submodules:
-	$(MAKE) -j1 force-deinit-amaranth-submodule \
-	force-deinit-amaranth-boards-submodule \
+	$(MAKE) -j1 \
+	force-deinit-torii-hdl-submodule \
+	force-deinit-torii-boards-submodule \
 	force-deinit-yosys-submodule \
 	force-deinit-prjtrellis-submodule \
 	force-deinit-prjxray-submodule \

@@ -1,9 +1,9 @@
-from amaranth import *
+from torii import *
 
-__all__ = ["AmaranthBlink"]
+__all__ = ["ToriiBlink"]
 
 
-class AmaranthBlink(Elaboratable):
+class ToriiBlink(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 

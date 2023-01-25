@@ -18,10 +18,6 @@
 	path = ghdl-yosys-plugin
 	url = https://github.com/LAK132/ghdl-yosys-plugin
 	ignore = dirty
-[submodule "amaranth"]
-	path = amaranth
-	url = https://github.com/LAK132/amaranth
-	ignore = dirty
 [submodule "mega65-tools"]
 	path = mega65-tools
 	url = https://github.com/MEGA65/mega65-tools
@@ -42,11 +38,13 @@
 	path = fasm2bit
 	url = https://github.com/LAK132/fasm2bit
 	ignore = dirty
-[submodule "amaranth-boards"]
-	path = amaranth-boards
-	url = https://github.com/LAK132/amaranth-boards
-	ignore = dirty
 [submodule "icestorm"]
 	path = icestorm
 	url = https://github.com/YosysHQ/icestorm
 	ignore = dirty
+[submodule "torii-hdl"]
+	path = torii-hdl
+	url = https://github.com/shrine-maiden-heavy-industries/torii-hdl
+[submodule "torii-boards"]
+	path = torii-boards
+	url = https://github.com/shrine-maiden-heavy-industries/torii-boards
