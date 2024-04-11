@@ -44,7 +44,11 @@
 	ignore = dirty
 [submodule "torii-hdl"]
 	path = torii-hdl
-	url = https://github.com/shrine-maiden-heavy-industries/torii-hdl
+	url = https://github.com/LAK132/torii-hdl
 [submodule "torii-boards"]
 	path = torii-boards
-	url = https://github.com/shrine-maiden-heavy-industries/torii-boards
+	url = https://github.com/LAK132/torii-boards
+[submodule "openFPGALoader"]
+	path = openFPGALoader
+	url = https://github.com/LAK132/openFPGALoader
+	branch = bmp_remote

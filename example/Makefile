@@ -1,4 +1,4 @@
-all: mega65r3.blink.cor orange-crab.blink.bit tinyfpga-bx.blink.bin
+all: blink-mega65r3.cor blink-orange-crab.bit blink-tinyfpga-bx.bin
 
 .PHONY: all
 
@@ -37,7 +37,7 @@ source/tinyfpga_bx.py,\
 ,\
 ))
 
-mega65r3.%.cor: mega65r3.%.bit Makefile.conf | $(BIT2CORE)
+%-mega65r3.cor: %-mega65r3.bit Makefile.conf | $(BIT2CORE)
 	$(BIT2CORE) mega65r3 $< $* "V1" $@
 
 clean:

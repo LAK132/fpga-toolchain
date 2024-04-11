@@ -11,6 +11,7 @@ ICESTORM_PREFIX=$(SELFDIR)/icestorm
 MEGA65_TOOLS_PREFIX=$(SELFDIR)/mega65-tools
 NEXTPNR_PREFIX=$(SELFDIR)/nextpnr
 NEXTPNR_XILINX_PREFIX=$(SELFDIR)/nextpnr-xilinx
+OPENFPGALOADER_PREFIX=$(SELFDIR)/openFPGALoader
 PRJTRELLIS_PREFIX=$(SELFDIR)/prjtrellis
 PRJXRAY_PREFIX=$(SELFDIR)/prjxray
 YOSYS_PREFIX=$(SELFDIR)/yosys
@@ -24,7 +25,7 @@ MEGA65_TOOLS_PREFIX=$(SELFDIR)/mega65-tools
 
 LIBTRELLIS_PREFIX=$(PRJTRELLIS_PREFIX)/libtrellis
 TRELLISDBDIR=$(SHAREDIR)/trellis/database
-PYTRELLIS=$(LIBDIR)/trellis/pytrellis.so
+PYTRELLIS=$(LIBDIR)/trellis/pytrellis$(DLL)
 
 LAKFPGA_PREFIX=$(SHAREDIR)/lakfpga
 
@@ -36,6 +37,7 @@ $(BBAEXPORT) \
 $(BBASM) \
 $(XC7FRAMES2BIT) \
 $(FASM2FRAMES) \
+$(OPENFPGALOADER) \
 $(BIT2CORE) \
 $(NEXTPNR_ECP5) \
 $(NEXTPNR_ICE40) \
@@ -62,17 +64,60 @@ submodules:
 	nextpnr-xilinx-submodule \
 	ghdl-submodule \
 	ghdl-yosys-submodule \
+	openFPGALoader-submodule \
 	mega65-tools-submodule
 
 .PHONY: all
 
+ifeq ($(HOST_SYSTEM),Linux)
+ifneq ($(shell cat /etc/lsb-release | grep Ubuntu),)
+IS_UBUNTU:=TRUE
+endif
+endif
+
 install_dependencies:
+ifneq ($(IS_UBUNTU),)
 	apt install build-essential clang bison flex libreadline-dev gawk tcl-dev \
 	libffi-dev git graphviz xdot pkg-config gcc g++ gnat cmake virtualenv \
 	python3 python3-pip python3-yaml python3-venv python3-virtualenv \
 	libboost-system-dev libboost-python-dev libboost-filesystem-dev \
 	libboost-thread-dev libboost-program-options-dev libboost-iostreams-dev \
-	zlib1g-dev qtbase5-dev libqt5gui5 libeigen3-dev ccache dfu-util libftdi-dev
+	zlib1g-dev qtbase5-dev libqt5gui5 libeigen3-dev ccache dfu-util libftdi-dev \
+	libftdi1-dev libudev-dev grep
+endif
+ifeq ($(HOST_SYSTEM),WSL)
+	$(warning If you are intending to build the board flashing tools, you will want to run this command under MSYS as well, or run install_msys_dependencies)
+endif
+ifeq ($(HOST_SYSTEM),MSYS)
+	pacman -S --needed grep mingw-w64-ucrt-x86_64-cmake \
+	mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-gcc \
+	mingw-w64-ucrt-x86_64-libusb mingw-w64-ucrt-x86_64-libftdi \
+	mingw-w64-ucrt-x86_64-libpng mingw-w64-ucrt-x86_64-zlib
+endif
+
+install_msys_dependencies:
+	$(call MAKE_IN_MSYS,install_dependencies)
+
+ifeq ($(HOST_SYSTEM),MSYS)
+CC:=/ucrt64/bin/x86_64-w64-mingw32-gcc.exe
+CXX:=/ucrt64/bin/x86_64-w64-mingw32-g++.exe
+CMAKE?=/ucrt64/bin/cmake.exe
+endif
+CC?=gcc
+CXX?=g++
+CMAKE?=cmake
+
+ifeq ($(MSYS_PREFIX),)
+define MAKE_IN_MSYS=
+$(error Unable to build tools requiring USB under WSL. Unable to find MSYS bash. Add `MSYS_PREFIX=/path/to/msys64` to your Makefile.conf)
+endef
+else
+define MAKE_IN_MSYS=
+( $(MSYS_PREFIX)/usr/bin/bash.exe -c "export MSYSTEM=UCRT64 && $(patsubst /mnt/%,/%,$(MSYS_PREFIX)/usr/bin/bash.exe) --login -c \"cd $(patsubst /mnt/%,/%,$(SELFDIR)) && /ucrt64/bin/mingw32-make.exe $(patsubst /mnt/%,/%,$1)\"" )
+# the version above uses Windows paths, below uses unix paths
+# ( $(MSYS_PREFIX)/usr/bin/bash.exe -c "export MSYSTEM=UCRT64 && $(patsubst /mnt/%,/%,$(MSYS_PREFIX)/usr/bin/bash.exe) --login -c \"cd $(patsubst /mnt/%,/%,$(SELFDIR)) && /usr/bin/make $(patsubst /mnt/%,/%,$1)\"" )
+endef
+endif
 
 test:
 	( cd example && $(MAKE) -j1 clean && $(MAKE) -j1 all )
@@ -129,7 +174,7 @@ $(LIBTRELLIS_PREFIX)/CMakeLists.txt:
 	$(MAKE) prjtrellis-submodule
 
 $(LIBTRELLIS_PREFIX)/Makefile: $(LIBTRELLIS_PREFIX)/CMakeLists.txt Makefile.conf
-	( cd $(LIBTRELLIS_PREFIX) && cmake -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
+	( cd $(LIBTRELLIS_PREFIX) && $(CMAKE) -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
 
 force-prjtrellis $(PYTRELLIS): $(LIBTRELLIS_PREFIX)/Makefile
 	( cd $(LIBTRELLIS_PREFIX) && $(MAKE) -j1 && $(MAKE) -j1 install )
@@ -165,7 +210,7 @@ $(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
 	mkdir -p $@
 
 $(PRJXRAY_PREFIX)/build/Makefile: $(PRJXRAY_PREFIX)/CMakeLists.txt Makefile.conf | $(PRJXRAY_PREFIX)/build
-	( cd $(PRJXRAY_PREFIX)/build && cmake -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" .. )
+	( cd $(PRJXRAY_PREFIX)/build && $(CMAKE) -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" .. )
 
 force-prjxray $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build/Makefile $(ACTIVATE_VENV)
 	( cd $(PRJXRAY_PREFIX) && ENV_DIR="$(INSTALL_PREFIX)" $(MAKE) -j1 env && $(MAKE) -j1 install )
@@ -207,7 +252,7 @@ $(NEXTPNR_PREFIX)/CMakeLists.txt:
 	$(MAKE) nextpnr-submodule
 
 $(NEXTPNR_PREFIX)/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS) $(ICEPACK) Makefile.conf
-	( cd $(NEXTPNR_PREFIX) && cmake -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ecp5;ice40" -DICESTORM_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DTRELLIS_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
+	( cd $(NEXTPNR_PREFIX) && $(CMAKE) -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ecp5;ice40" -DICESTORM_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DTRELLIS_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
 
 force-nextpnr $(NEXTPNR_ECP5): $(NEXTPNR_PREFIX)/Makefile
 	( cd $(NEXTPNR_PREFIX) && $(MAKE) && $(MAKE) -j1 install )
@@ -222,7 +267,7 @@ $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt:
 	$(MAKE) nextpnr-xilinx-submodule
 
 $(NEXTPNR_XILINX_PREFIX)/Makefile: $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt Makefile.conf
-	( cd $(NEXTPNR_XILINX_PREFIX) && cmake -DEXTERNAL_DB=ON -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH=xilinx -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
+	( cd $(NEXTPNR_XILINX_PREFIX) && $(CMAKE) -DEXTERNAL_DB=ON -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH=xilinx -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
 
 force-nextpnr-xilinx $(NEXTPNR_XILINX): $(NEXTPNR_XILINX_PREFIX)/Makefile
 	( cd $(NEXTPNR_XILINX_PREFIX) && $(MAKE) && $(MAKE) install )
@@ -276,16 +321,42 @@ $(GHDL_YOSYS_PLUGIN_PREFIX)/src/%: | $(GHDL_YOSYS_PLUGIN_PREFIX)/src
 $(GHDL_YOSYS_PLUGIN_PREFIX)/src:
 	$(MAKE) ghdl-yosys-submodule
 
+# --- openFPGALoader ---
+
+$(OPENFPGALOADER_PREFIX)/CMakeLists.txt:
+	$(MAKE) openFPGALoader-submodule
+
+$(OPENFPGALOADER_PREFIX)/build: $(OPENFPGALOADER_PREFIX)/CMakeLists.txt
+	mkdir -p $@
+
+$(OPENFPGALOADER_PREFIX)/build/Makefile: $(OPENFPGALOADER_PREFIX)/CMakeLists.txt Makefile.conf | $(OPENFPGALOADER_PREFIX)/build
+ifeq ($(HOST_SYSTEM),WSL)
+	$(call MAKE_IN_MSYS,$@)
+else
+	( cd $(OPENFPGALOADER_PREFIX)/build && $(CMAKE) -DBUILD_STATIC=ON -DENABLE_CMSISDAP=OFF -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" .. )
+endif
+
+force-openFPGALoader $(OPENFPGALOADER): $(OPENFPGALOADER_PREFIX)/build/Makefile
+ifeq ($(HOST_SYSTEM),WSL)
+	$(call MAKE_IN_MSYS,$@)
+else
+	( cd $(OPENFPGALOADER_PREFIX)/build && $(CMAKE) --build . && $(CMAKE) --install . )
+endif
+
 # --- mega65-tools ---
 
 $(MEGA65_TOOLS_PREFIX)/Makefile:
 	$(MAKE) mega65-tools-submodule
 
 $(MEGA65_TOOLS_PREFIX)/bin/bit2core: $(MEGA65_TOOLS_PREFIX)/Makefile Makefile.conf
-	( cd $(MEGA65_TOOLS_PREFIX) && $(MAKE) bin/bit2core )
+	( cd $(MEGA65_TOOLS_PREFIX) && $(MAKE) -j1 bin/bit2core )
 
-force-bit2core $(BIT2CORE): $(MEGA65_TOOLS_PREFIX)/bin/bit2core
+$(BIT2CORE): $(MEGA65_TOOLS_PREFIX)/bin/bit2core
 	cp -f $< $(BIT2CORE)
+
+force-bit2core:
+	( cd $(MEGA65_TOOLS_PREFIX) && $(MAKE) -j1 bin/bit2core ) && \
+	cp -f $(MEGA65_TOOLS_PREFIX)/bin/bit2core $(BIT2CORE)
 
 # --- lakfpga ---
 
@@ -331,6 +402,7 @@ force-deinit-submodules:
 	force-deinit-nextpnr-xilinx-submodule \
 	force-deinit-ghdl-submodule \
 	force-deinit-ghdl-yosys-plugin-submodule \
+	force-deinit-openFPGALoader-submodule \
 	force-deinit-mega65-tools-submodule
 
 hard-reset: force-deinit-submodules

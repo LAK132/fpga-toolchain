@@ -12,5 +12,9 @@ make all -j $(nproc)
 
 ### Example
 ```
-cd example && make mega65r3.blink.cor
+cd example && make blink-mega65r3.cor
+```
+
+```
+cd example && FLASH_PORT=COM4 make jtag-flash-blink-mega65r3
 ```
