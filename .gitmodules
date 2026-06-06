@@ -1,10 +1,11 @@
 [submodule "nextpnr-xilinx"]
 	path = nextpnr-xilinx
-	url = https://github.com/gatecat/nextpnr-xilinx
+	url = https://github.com/LAK132/nextpnr-xilinx
 	ignore = dirty
 [submodule "prjxray"]
 	path = prjxray
 	url = https://github.com/LAK132/prjxray
+	branch = lak-fork
 	ignore = dirty
 [submodule "yosys"]
 	path = yosys
@@ -16,7 +17,7 @@
 	ignore = dirty
 [submodule "ghdl-yosys-plugin"]
 	path = ghdl-yosys-plugin
-	url = https://github.com/LAK132/ghdl-yosys-plugin
+	url = https://github.com/ghdl/ghdl-yosys-plugin
 	ignore = dirty
 [submodule "mega65-tools"]
 	path = mega65-tools
@@ -44,10 +45,10 @@
 	ignore = dirty
 [submodule "torii-hdl"]
 	path = torii-hdl
-	url = https://github.com/LAK132/torii-hdl
+	url = https://codeberg.org/shrine-maiden-heavy-industries/torii-hdl
 [submodule "torii-boards"]
 	path = torii-boards
-	url = https://github.com/LAK132/torii-boards
+	url = https://codeberg.org/shrine-maiden-heavy-industries/torii-boards
 [submodule "openFPGALoader"]
 	path = openFPGALoader
 	url = https://github.com/LAK132/openFPGALoader

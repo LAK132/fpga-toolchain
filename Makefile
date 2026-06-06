@@ -29,6 +29,13 @@ PYTRELLIS=$(LIBDIR)/trellis/pytrellis$(DLL)
 
 LAKFPGA_PREFIX=$(SHAREDIR)/lakfpga
 
+CMAKE_INSTALL_CONFIG=\
+-DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" \
+-DCMAKE_INSTALL_LIBDIR="$(LIBDIR)" \
+-DCMAKE_INSTALL_BINDIR="$(BINDIR)" \
+-DCMAKE_INSTALL_INCLUDEDIR="$(INCDIR)" \
+-DCMAKE_INSTALL_DATAROOTDIR="$(SHAREDIR)"
+
 ALL_TOOLS=\
 $(GHDL) \
 $(ECPPACK) \
@@ -51,7 +58,11 @@ $(XRAYDBDIR) \
 $(XRAYENV)
 
 all:
-	$(foreach T,submodules $(ALL_DEPENDS) install-lakfpga force-torii-hdl force-torii-boards, ( $(MAKE) $T ) &&) echo ""
+	( $(MAKE) submodules ) && \
+	( $(MAKE) force-torii-hdl ) && \
+	( $(MAKE) force-torii-boards ) && \
+	$(foreach T,$(ALL_DEPENDS),( $(MAKE) $T ) && ) \
+	( $(MAKE) install-lakfpga )
 
 submodules:
 	$(MAKE) -j1 \
@@ -78,8 +89,8 @@ endif
 install_dependencies:
 ifneq ($(IS_UBUNTU),)
 	apt install build-essential clang bison flex libreadline-dev gawk tcl-dev \
-	libffi-dev git graphviz xdot pkg-config gcc g++ gnat cmake virtualenv \
-	python3 python3-pip python3-yaml python3-venv python3-virtualenv \
+	libffi-dev git graphviz xdot pkg-config gcc g++ gnat cmake \
+	python3.11 python3.11-pip python3.11-venv \
 	libboost-system-dev libboost-python-dev libboost-filesystem-dev \
 	libboost-thread-dev libboost-program-options-dev libboost-iostreams-dev \
 	zlib1g-dev qtbase5-dev libqt5gui5 libeigen3-dev ccache dfu-util libftdi-dev \
@@ -125,28 +136,37 @@ test:
 # --- python venv ---
 
 force-venv $(ACTIVATE_VENV):
-	( cd $(SELFDIR) && python3 -m venv --copies --upgrade $(INSTALL_PREFIX) )
+	( cd $(SELFDIR) && $(PYTHON3) -m venv --copies $(INSTALL_PREFIX) )
+
+$(INSTALL_PREFIX): | $(ACTIVATE_VENV)
+
+$(BINDIR) $(LIBDIR) $(INCDIR) $(SHAREDIR): | $(ACTIVATE_VENV)
+	mkdir -p $@
 
 # --- torii-hdl ---
 
-$(TORII_HDL_PREFIX)/setup.py:
+$(TORII_HDL_PREFIX)/.git:
 	$(MAKE) torii-hdl-submodule
 
-force-torii-hdl: $(TORII_HDL_PREFIX)/setup.py $(ACTIVATE_VENV)
-	( cd $(TORII_HDL_PREFIX) && . $(ACTIVATE_VENV) && python3 -m pip install --editable . )
+force-torii-hdl: | $(TORII_HDL_PREFIX)/.git $(ACTIVATE_VENV)
+	( cd $(TORII_HDL_PREFIX) && . $(ACTIVATE_VENV) && $(PYTHON3) -m pip install . )
 
 # --- torii-boards ---
 
-$(TORII_BOARDS_PREFIX)/setup.py:
+$(TORII_BOARDS_PREFIX)/.git:
 	$(MAKE) torii-boards-submodule
 
-force-torii-boards: $(TORII_BOARDS_PREFIX)/setup.py $(ACTIVATE_VENV)
-	( cd $(TORII_BOARDS_PREFIX) && . $(ACTIVATE_VENV) && python3 -m pip install --editable . )
+force-torii-boards: | $(TORII_BOARDS_PREFIX)/.git $(ACTIVATE_VENV)
+	( cd $(TORII_BOARDS_PREFIX) && . $(ACTIVATE_VENV) && $(PYTHON3) -m pip install . )
 
 # --- yosys ---
 
-$(YOSYS_PREFIX)/Makefile:
+YOSYS_SUBMODULE_INIT_ARGS:=--recursive
+
+$(YOSYS_PREFIX)/.git: |  $(GHDL_YOSYS_PLUGIN_PREFIX)/.git
 	$(MAKE) yosys-submodule
+
+$(YOSYS_PREFIX)/Makefile: | $(YOSYS_PREFIX)/.git
 
 $(YOSYS_PREFIX)/frontends/ghdl: | $(YOSYS_PREFIX)/Makefile $(YOSYS_PREFIX)/frontends
 	mkdir -p $@
@@ -170,14 +190,16 @@ force-yosys $(YOSYS): $(YOSYS_PREFIX)/Makefile.conf
 
 PRJTRELLIS_SUBMODULE_INIT_ARGS:=--recursive
 
-$(LIBTRELLIS_PREFIX)/CMakeLists.txt:
+$(LIBTRELLIS_PREFIX)/.git:
 	$(MAKE) prjtrellis-submodule
 
-$(LIBTRELLIS_PREFIX)/Makefile: $(LIBTRELLIS_PREFIX)/CMakeLists.txt Makefile.conf
-	( cd $(LIBTRELLIS_PREFIX) && $(CMAKE) -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
+$(LIBTRELLIS_PREFIX)/CMakeLists.txt: | $(LIBTRELLIS_PREFIX)/.git
 
-force-prjtrellis $(PYTRELLIS): $(LIBTRELLIS_PREFIX)/Makefile
-	( cd $(LIBTRELLIS_PREFIX) && $(MAKE) -j1 && $(MAKE) -j1 install )
+$(LIBTRELLIS_PREFIX)/generated/Makefile: $(LIBTRELLIS_PREFIX)/CMakeLists.txt Makefile.conf | $(ACTIVATE_VENV)
+	( cd $(LIBTRELLIS_PREFIX) && . $(ACTIVATE_VENV) && $(CMAKE) . -B generated $(CMAKE_INSTALL_CONFIG) && $(CMAKE) --build generated )
+
+force-prjtrellis $(PYTRELLIS): $(LIBTRELLIS_PREFIX)/generated/Makefile | $(ACTIVATE_VENV)
+	( cd $(LIBTRELLIS_PREFIX)/generated && . $(ACTIVATE_VENV) && $(MAKE) -j1 && $(MAKE) -j1 install )
 
 $(ECPPACK): $(PYTRELLIS)
 
@@ -193,8 +215,10 @@ $(TRELLISDBDIR)/%: $(LIBTRELLIS_PREFIX)/Makefile
 
 ICESTORM_SUBMODULE_INIT_ARGS:=--recursive
 
-$(ICESTORM_PREFIX)/Makefile:
+$(ICESTORM_PREFIX)/.git:
 	$(MAKE) icestorm-submodule
+
+$(ICESTORM_PREFIX)/Makefile: | $(ICESTORM_PREFIX)/.git
 
 force-icestorm $(ICEPACK): $(ICESTORM_PREFIX)/Makefile
 	( cd $(ICESTORM_PREFIX) && PREFIX="$(INSTALL_PREFIX)" $(MAKE) && PREFIX="$(INSTALL_PREFIX)" $(MAKE) -j1 install )
@@ -203,17 +227,16 @@ force-icestorm $(ICEPACK): $(ICESTORM_PREFIX)/Makefile
 
 PRJXRAY_SUBMODULE_INIT_ARGS:=--recursive
 
-$(PRJXRAY_PREFIX)/Makefile:
+$(PRJXRAY_PREFIX)/.git:
 	$(MAKE) prjxray-submodule
 
-$(PRJXRAY_PREFIX)/build: $(PRJXRAY_PREFIX)/Makefile
-	mkdir -p $@
+$(PRJXRAY_PREFIX)/CMakeLists.txt $(PRJXRAY_PREFIX)/Makefile: | $(PRJXRAY_PREFIX)/.git
 
-$(PRJXRAY_PREFIX)/build/Makefile: $(PRJXRAY_PREFIX)/CMakeLists.txt Makefile.conf | $(PRJXRAY_PREFIX)/build
-	( cd $(PRJXRAY_PREFIX)/build && $(CMAKE) -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" .. )
+$(PRJXRAY_PREFIX)/build/Makefile: $(PRJXRAY_PREFIX)/CMakeLists.txt Makefile.conf | $(ACTIVATE_VENV)
+	( cd $(PRJXRAY_PREFIX) && . $(ACTIVATE_VENV) && $(CMAKE) . -B build -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $(CMAKE_INSTALL_CONFIG) )
 
-force-prjxray $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build/Makefile $(ACTIVATE_VENV)
-	( cd $(PRJXRAY_PREFIX) && ENV_DIR="$(INSTALL_PREFIX)" $(MAKE) -j1 env && $(MAKE) -j1 install )
+force-prjxray $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build/Makefile | $(ACTIVATE_VENV)
+	( cd $(PRJXRAY_PREFIX) && . $(ACTIVATE_VENV) && ENV_DIR="$(INSTALL_PREFIX)" $(MAKE) -j1 env && cd $(PRJXRAY_PREFIX)/build && $(MAKE) -j1 preinstall && $(CMAKE) $(CMAKE_INSTALL_CONFIG) -P cmake_install.cmake )
 
 $(XC7FRAMES2BIT): $(FASM2FRAMES)
 
@@ -248,14 +271,16 @@ $(XRAYDBDIR)/%: | $(XRAYDBDIR)
 NEXTPNR_SUBMODULE_INIT_ARGS:=--recursive
 NEXTPNR_PYTHON?=OFF
 
-$(NEXTPNR_PREFIX)/CMakeLists.txt:
+$(NEXTPNR_PREFIX)/.git:
 	$(MAKE) nextpnr-submodule
 
-$(NEXTPNR_PREFIX)/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS) $(ICEPACK) Makefile.conf
-	( cd $(NEXTPNR_PREFIX) && $(CMAKE) -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ecp5;ice40" -DICESTORM_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DTRELLIS_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
+$(NEXTPNR_PREFIX)/CMakeLists.txt: | $(NEXTPNR_PREFIX)/.git
 
-force-nextpnr $(NEXTPNR_ECP5): $(NEXTPNR_PREFIX)/Makefile
-	( cd $(NEXTPNR_PREFIX) && $(MAKE) && $(MAKE) -j1 install )
+$(NEXTPNR_PREFIX)/build/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS) $(ICEPACK) Makefile.conf | $(ACTIVATE_VENV)
+	( cd $(NEXTPNR_PREFIX) && . $(ACTIVATE_VENV) && $(CMAKE) . -B build -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ecp5;ice40" -DICESTORM_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DTRELLIS_INSTALL_PREFIX="$(INSTALL_PREFIX)" $(CMAKE_INSTALL_CONFIG) && $(CMAKE) --build build )
+
+force-nextpnr $(NEXTPNR_ECP5): $(NEXTPNR_PREFIX)/build/Makefile | $(ACTIVATE_VENV)
+	( cd $(NEXTPNR_PREFIX)/build && . $(ACTIVATE_VENV) && $(MAKE) && $(MAKE) -j1 install )
 
 $(NEXTPNR_ICE40): $(NEXTPNR_ECP5)
 
@@ -263,14 +288,16 @@ $(NEXTPNR_ICE40): $(NEXTPNR_ECP5)
 
 NEXTPNR_XILINX_SUBMODULE_INIT_ARGS:=--recursive
 
-$(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt:
+$(NEXTPNR_XILINX_PREFIX)/.git:
 	$(MAKE) nextpnr-xilinx-submodule
 
-$(NEXTPNR_XILINX_PREFIX)/Makefile: $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt Makefile.conf
-	( cd $(NEXTPNR_XILINX_PREFIX) && $(CMAKE) -DEXTERNAL_DB=ON -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH=xilinx -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" . )
+$(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt: | $(NEXTPNR_XILINX_PREFIX)/.git
 
-force-nextpnr-xilinx $(NEXTPNR_XILINX): $(NEXTPNR_XILINX_PREFIX)/Makefile
-	( cd $(NEXTPNR_XILINX_PREFIX) && $(MAKE) && $(MAKE) install )
+$(NEXTPNR_XILINX_PREFIX)/generated/Makefile: $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt Makefile.conf | $(ACTIVATE_VENV)
+	( cd $(NEXTPNR_XILINX_PREFIX) && . $(ACTIVATE_VENV) && $(CMAKE) . -B generated -DEXTERNAL_CHIPDB=ON -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH=xilinx $(CMAKE_INSTALL_CONFIG) && $(CMAKE) --build generated )
+
+force-nextpnr-xilinx $(NEXTPNR_XILINX): $(NEXTPNR_XILINX_PREFIX)/generated/Makefile | $(ACTIVATE_VENV)
+	( cd $(NEXTPNR_XILINX_PREFIX)/generated && . $(ACTIVATE_VENV) && $(MAKE) && $(MAKE) install )
 
 .PRECIOUS: $(NEXTPNR_XILINX_META)/%
 $(NEXTPNR_XILINX_META): | $(NEXTPNR_XILINX_SHARE)
@@ -296,9 +323,9 @@ $(BBAEXPORT): $(NEXTPNR_XILINX_PREFIX)/xilinx/python/bbaexport.py $(BBAEXPORT_DE
 $(NEXTPNR_XILINX_SHARE)/%: $(NEXTPNR_XILINX_PREFIX)/xilinx/% | $(NEXTPNR_XILINX_SHARE) $(NEXTPNR_XILINX_PYTHON) $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt
 	cp -f $< $@
 
-$(NEXTPNR_XILINX_PREFIX)/bbasm: $(NEXTPNR_XILINX)
+$(NEXTPNR_XILINX_PREFIX)/generated/bba/bbasm: $(NEXTPNR_XILINX)
 
-$(BBASM): $(NEXTPNR_XILINX_PREFIX)/bbasm
+$(BBASM): $(NEXTPNR_XILINX_PREFIX)/generated/bba/bbasm
 	cp -f $< $@
 
 bbaexport: $(BBAEXPORT) $(NEXTPNR_XILINX_META)
@@ -306,25 +333,31 @@ bbasm: $(BBASM)
 
 # --- ghdl ---
 
-$(GHDL_PREFIX)/configure:
+$(GHDL_PREFIX)/.git:
 	$(MAKE) ghdl-submodule
 
-$(GHDL_PREFIX)/Makefile: $(GHDL_PREFIX)/configure Makefile.conf
-	( cd $(GHDL_PREFIX) && ./configure --prefix="$(INSTALL_PREFIX)" )
+$(GHDL_PREFIX)/build: | $(GHDL_PREFIX)/.git
+	mkdir -p $@
+
+$(GHDL_PREFIX)/configure: | $(GHDL_PREFIX)/.git
+
+$(GHDL_PREFIX)/Makefile: $(GHDL_PREFIX)/configure Makefile.conf | $(GHDL_PREFIX)/build
+	( cd $(GHDL_PREFIX)/build && ../configure --prefix="$(INSTALL_PREFIX)" --libghdldir="share/ghdl" )
 
 force-ghdl $(GHDL): $(GHDL_PREFIX)/Makefile
-	( cd $(GHDL_PREFIX) && $(MAKE) OPT_FLAGS=-fPIC && $(MAKE) install )
+	( cd $(GHDL_PREFIX)/build && unset SOURCE_DATE_EPOCH && $(MAKE) -j1 OPT_FLAGS=-fPIC && $(MAKE) install )
 
 # --- ghdl-yosys-plugin ---
 
-$(GHDL_YOSYS_PLUGIN_PREFIX)/src/%: | $(GHDL_YOSYS_PLUGIN_PREFIX)/src
-$(GHDL_YOSYS_PLUGIN_PREFIX)/src:
+$(GHDL_YOSYS_PLUGIN_PREFIX)/.git:
 	$(MAKE) ghdl-yosys-submodule
 
 # --- openFPGALoader ---
 
-$(OPENFPGALOADER_PREFIX)/CMakeLists.txt:
+$(OPENFPGALOADER_PREFIX)/.git:
 	$(MAKE) openFPGALoader-submodule
+
+$(OPENFPGALOADER_PREFIX)/CMakeLists.txt: | $(OPENFPGALOADER_PREFIX)/.git
 
 $(OPENFPGALOADER_PREFIX)/build: $(OPENFPGALOADER_PREFIX)/CMakeLists.txt
 	mkdir -p $@
@@ -333,7 +366,7 @@ $(OPENFPGALOADER_PREFIX)/build/Makefile: $(OPENFPGALOADER_PREFIX)/CMakeLists.txt
 ifeq ($(HOST_SYSTEM),WSL)
 	$(call MAKE_IN_MSYS,$@)
 else
-	( cd $(OPENFPGALOADER_PREFIX)/build && $(CMAKE) -DBUILD_STATIC=ON -DENABLE_CMSISDAP=OFF -DCMAKE_INSTALL_PREFIX="$(INSTALL_PREFIX)" .. )
+	( cd $(OPENFPGALOADER_PREFIX)/build && $(CMAKE) -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_STATIC=OFF -DENABLE_CMSISDAP=OFF $(CMAKE_INSTALL_CONFIG) .. )
 endif
 
 force-openFPGALoader $(OPENFPGALOADER): $(OPENFPGALOADER_PREFIX)/build/Makefile
@@ -345,18 +378,16 @@ endif
 
 # --- mega65-tools ---
 
-$(MEGA65_TOOLS_PREFIX)/Makefile:
+$(MEGA65_TOOLS_PREFIX)/.git:
 	$(MAKE) mega65-tools-submodule
+
+$(MEGA65_TOOLS_PREFIX)/Makefile: | $(MEGA65_TOOLS_PREFIX)/.git
 
 $(MEGA65_TOOLS_PREFIX)/bin/bit2core: $(MEGA65_TOOLS_PREFIX)/Makefile Makefile.conf
 	( cd $(MEGA65_TOOLS_PREFIX) && $(MAKE) -j1 bin/bit2core )
 
-$(BIT2CORE): $(MEGA65_TOOLS_PREFIX)/bin/bit2core
+force-bit2core $(BIT2CORE): $(MEGA65_TOOLS_PREFIX)/bin/bit2core | $(BINDIR)
 	cp -f $< $(BIT2CORE)
-
-force-bit2core:
-	( cd $(MEGA65_TOOLS_PREFIX) && $(MAKE) -j1 bin/bit2core ) && \
-	cp -f $(MEGA65_TOOLS_PREFIX)/bin/bit2core $(BIT2CORE)
 
 # --- lakfpga ---
 

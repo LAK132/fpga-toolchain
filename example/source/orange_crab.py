@@ -1,6 +1,5 @@
-from torii import *
-from torii.platform.vendor.lattice_ecp5 import *
-from torii_boards.lattice.orangecrab_r0_2 import *
+from torii.hdl import *
+from torii_boards.lattice.ecp5.orangecrab_r0_2 import *
 from torii_boards.test.blinky import *
 
 if __name__ == "__main__":

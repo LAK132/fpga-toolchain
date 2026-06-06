@@ -73,6 +73,7 @@ TORII_OUTPUT_DIR?=build
 
 BINDIR=$(INSTALL_PREFIX)/bin
 LIBDIR=$(INSTALL_PREFIX)/lib
+INCDIR=$(INSTALL_PREFIX)/include
 SHAREDIR=$(INSTALL_PREFIX)/share
 
 ACTIVATE_VENV=$(BINDIR)/activate
@@ -97,7 +98,7 @@ NEXTPNR_XILINX_META=$(NEXTPNR_XILINX_SHARE)/meta
 BBAEXPORT=$(NEXTPNR_XILINX_PYTHON)/bbaexport.py
 BBASM=$(BINDIR)/bbasm$(EXE)
 
-FASM2FRAMES=$(BINDIR)/fasm2frames$(EXE)
+FASM2FRAMES=$(BINDIR)/fasm2frames
 XC7FRAMES2BIT=$(BINDIR)/xc7frames2bit$(EXE)
 XRAY_SHARE_DIR=$(SHAREDIR)/prjxray
 XRAYDBDIR=$(XRAY_SHARE_DIR)/database
@@ -105,6 +106,8 @@ XRAYENV=$(XRAY_SHARE_DIR)/prjxray_env.sh
 NEXTPNRDBDIR=$(XRAY_SHARE_DIR)/build
 
 YOSYS=$(BINDIR)/yosys$(EXE)
+
+PYTHON3?=python3.11
 
 # openFPGALoader --list-cables
 FLASH_CABLE?=bmd
@@ -141,6 +144,7 @@ build/$(strip $1)/$(strip $2):
 
 build/$(strip $1)/$(strip $2)/$(TORII_OUTPUT_DIR)/top$(strip $3): \
 $4 $5 | build/$(strip $1)/$(strip $2) \
+$$(ACTIVATE_VENV) \
 $$(YOSYS) \
 $$(NEXTPNR_XILINX) $$(XRAYENV) $$(FASM2FRAMES) $$(XC7FRAMES2BIT) \
 $$(NEXTPNR_ECP5) $$(ECPPACK) \
@@ -159,7 +163,7 @@ $$(NEXTPNR_ICE40) $$(ICEPACK)
 	ECPPACK="$$(ECPPACK)" \
 	NEXTPNR_ICE40="$$(NEXTPNR_ICE40)" \
 	ICEPACK="$$(ICEPACK)" \
-	python3 $$(abspath $$<) )
+	$(PYTHON3) $$(abspath $$<) )
 endef
 
 # --- Xilinx specific targets ---
@@ -168,8 +172,8 @@ $(NEXTPNRDBDIR):
 	mkdir -p $@
 
 define PRJXRAY_PART_BUILDER=
-$$(NEXTPNRDBDIR)/%.bba: | $$(NEXTPNRDBDIR) $$(XRAYDBDIR)/$1/%
-	( . $$(ACTIVATE_VENV) && python3 $$(BBAEXPORT) --metadata $$(NEXTPNR_XILINX_META)/$1 --xray $$(XRAYDBDIR)/$1 --device $$* --bba $$@ )
+$$(NEXTPNRDBDIR)/%.bba: | $$(NEXTPNRDBDIR) $$(XRAYDBDIR)/$1/% $$(ACTIVATE_VENV)
+	( . $$(ACTIVATE_VENV) && $(PYTHON3) $$(BBAEXPORT) --metadata $$(NEXTPNR_XILINX_META)/$1 --xray $$(XRAYDBDIR)/$1 --device $$* --bba $$@ )
 
 $$(NEXTPNRDBDIR)/%.bin: $$(NEXTPNRDBDIR)/%.bba | $$(NEXTPNRDBDIR)
 	$$(BBASM) --le $$< $$@
