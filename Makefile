@@ -381,13 +381,10 @@ endif
 $(MEGA65_TOOLS_PREFIX)/.git:
 	$(MAKE) mega65-tools-submodule
 
-$(MEGA65_TOOLS_PREFIX)/Makefile: | $(MEGA65_TOOLS_PREFIX)/.git
+$(MEGA65_TOOLS_PREFIX)/src/tools/coretool: | $(MEGA65_TOOLS_PREFIX)/.git
 
-$(MEGA65_TOOLS_PREFIX)/bin/bit2core: $(MEGA65_TOOLS_PREFIX)/Makefile Makefile.conf
-	( cd $(MEGA65_TOOLS_PREFIX) && $(MAKE) -j1 bin/bit2core )
-
-force-bit2core $(BIT2CORE): $(MEGA65_TOOLS_PREFIX)/bin/bit2core | $(BINDIR)
-	cp -f $< $(BIT2CORE)
+force-coretool $(CORETOOL): $(MEGA65_TOOLS_PREFIX)/src/tools/coretool | $(BINDIR)
+	cp -f $< $(CORETOOL)
 
 # --- lakfpga ---
 

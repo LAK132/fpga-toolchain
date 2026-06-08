@@ -84,7 +84,7 @@ ICEPACK=$(BINDIR)/icepack$(EXE)
 
 OPENFPGALOADER=$(BINDIR)/openFPGALoader$(USB_EXE)
 
-BIT2CORE=$(BINDIR)/bit2core$(EXE)
+CORETOOL=$(BINDIR)/coretool
 
 NEXTPNR_ECP5=$(BINDIR)/nextpnr-ecp5$(EXE)
 NEXTPNR_ICE40=$(BINDIR)/nextpnr-ice40$(EXE)
@@ -164,6 +164,9 @@ $$(NEXTPNR_ICE40) $$(ICEPACK)
 	NEXTPNR_ICE40="$$(NEXTPNR_ICE40)" \
 	ICEPACK="$$(ICEPACK)" \
 	$(PYTHON3) $$(abspath $$<) )
+
+$(strip $2)-$(strip $1).cor: $(strip $2)-$(strip $1)$(strip $3)
+	$$(CORETOOL) --build $$@ --bit $$< --target $(strip $1) --bit-name $(strip $2) --bit-version 1 --force
 endef
 
 # --- Xilinx specific targets ---

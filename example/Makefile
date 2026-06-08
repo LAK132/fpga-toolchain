@@ -37,8 +37,5 @@ source/tinyfpga_bx.py,\
 ,\
 ))
 
-%-mega65r3.cor: %-mega65r3.bit Makefile.conf | $(BIT2CORE)
-	$(BIT2CORE) mega65r3 $< $* "V1" $@
-
 clean:
 	rm -rf $(TORII_OUTPUT_DIR)
