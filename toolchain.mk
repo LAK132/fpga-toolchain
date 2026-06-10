@@ -69,7 +69,9 @@ include $(SELFDIR)/Makefile.conf
 
 INSTALL_PREFIX?=$(SELFDIR)/build
 VIVADO_PREFIX?=/opt/Xilinx
-TORII_OUTPUT_DIR?=build
+BUILD_DIR?=build
+
+TORII_OUTPUT_DIR=build
 
 BINDIR=$(INSTALL_PREFIX)/bin
 LIBDIR=$(INSTALL_PREFIX)/lib
@@ -103,11 +105,11 @@ XC7FRAMES2BIT=$(BINDIR)/xc7frames2bit$(EXE)
 XRAY_SHARE_DIR=$(SHAREDIR)/prjxray
 XRAYDBDIR=$(XRAY_SHARE_DIR)/database
 XRAYENV=$(XRAY_SHARE_DIR)/prjxray_env.sh
-NEXTPNRDBDIR=$(XRAY_SHARE_DIR)/build
+NEXTPNR_DB_DIR?=nextpnr-db
 
 YOSYS=$(BINDIR)/yosys$(EXE)
 
-PYTHON3?=python3.11
+VENV_PYTHON3=$(BINDIR)/python3$(EXE)
 
 # openFPGALoader --list-cables
 FLASH_CABLE?=bmd
@@ -129,9 +131,10 @@ FLASH_PORT?=/dev/ttyUSB1
 # --- generic targets ---
 
 define DECLARE_CORE=
-$(strip $2)-$(strip $1)$(strip $3): build/$(strip $1)/$(strip $2)/$(TORII_OUTPUT_DIR)/top$(strip $3)
+$(strip $2)-$(strip $1)$(strip $3): $(BUILD_DIR)/$(strip $1)/$(strip $2)/$(TORII_OUTPUT_DIR)/top$(strip $3)
 	cp -f $$< $$@
 
+.PHONY: jtag-flash-$(strip $2)-$(strip $1)
 jtag-flash-$(strip $2)-$(strip $1): $(strip $2)-$(strip $1)$(strip $3) | $$(OPENFPGALOADER)
 ifeq ($$(HOST_SYSTEM),WSL)
 	( cmd.exe /c `wslpath -w $$(OPENFPGALOADER)` --bitstream `wslpath -w $$<` --cable $$(FLASH_CABLE) --device $$(FLASH_PORT) )
@@ -139,54 +142,56 @@ else
 	$$(OPENFPGALOADER) --bitstream $$< --cable $$(FLASH_CABLE) --device $$(FLASH_PORT)
 endif
 
-build/$(strip $1)/$(strip $2):
+$(BUILD_DIR)/$(strip $1)/$(strip $2):
 	mkdir -p $$@
 
-build/$(strip $1)/$(strip $2)/$(TORII_OUTPUT_DIR)/top$(strip $3): \
-$4 $5 | build/$(strip $1)/$(strip $2) \
+.PHONY: $(BUILD_DIR)/$(strip $1)/$(strip $2)/$(TORII_OUTPUT_DIR)/top$(strip $3)
+$(BUILD_DIR)/$(strip $1)/$(strip $2)/$(TORII_OUTPUT_DIR)/top$(strip $3): \
+$4 $5 | $(BUILD_DIR)/$(strip $1)/$(strip $2) \
 $$(ACTIVATE_VENV) \
 $$(YOSYS) \
 $$(NEXTPNR_XILINX) $$(XRAYENV) $$(FASM2FRAMES) $$(XC7FRAMES2BIT) \
 $$(NEXTPNR_ECP5) $$(ECPPACK) \
 $$(NEXTPNR_ICE40) $$(ICEPACK)
-	( cd build/$(strip $1)/$(strip $2) && . $$(ACTIVATE_VENV) && \
+	( cd $(BUILD_DIR)/$(strip $1)/$(strip $2) && . $$(ACTIVATE_VENV) && \
 	$6 \
 	YOSYS="$$(YOSYS)" \
 	NEXTPNR_XILINX="$$(NEXTPNR_XILINX)" \
 	TORII_ENV_YOSYS_NEXTPNR="$$(XRAYENV)" \
 	FASM2FRAMES="$$(FASM2FRAMES)" \
 	XC7FRAMES2BIT="$$(XC7FRAMES2BIT)" \
-	TORII_NEXTPNR_DB_DIR="$$(NEXTPNRDBDIR)" \
+	TORII_NEXTPNR_DB_DIR="$$(abspath $$(NEXTPNR_DB_DIR))" \
 	TORII_PRJXRAY_DB_DIR="$$(XRAYDBDIR)" \
 	TORII_XC7FRAMES2BIT_OPTS="--compressed" \
 	NEXTPNR_ECP5="$$(NEXTPNR_ECP5)"\
 	ECPPACK="$$(ECPPACK)" \
 	NEXTPNR_ICE40="$$(NEXTPNR_ICE40)" \
 	ICEPACK="$$(ICEPACK)" \
-	$(PYTHON3) $$(abspath $$<) )
+	$(VENV_PYTHON3) $$(abspath $$<) )
 
+.PHONY: $(strip $2)-$(strip $1).cor
 $(strip $2)-$(strip $1).cor: $(strip $2)-$(strip $1)$(strip $3)
 	$$(CORETOOL) --build $$@ --bit $$< --target $(strip $1) --bit-name $(strip $2) --bit-version 1 --force
 endef
 
 # --- Xilinx specific targets ---
 
-$(NEXTPNRDBDIR):
+$(NEXTPNR_DB_DIR):
 	mkdir -p $@
 
 define PRJXRAY_PART_BUILDER=
-$$(NEXTPNRDBDIR)/%.bba: | $$(NEXTPNRDBDIR) $$(XRAYDBDIR)/$1/% $$(ACTIVATE_VENV)
-	( . $$(ACTIVATE_VENV) && $(PYTHON3) $$(BBAEXPORT) --metadata $$(NEXTPNR_XILINX_META)/$1 --xray $$(XRAYDBDIR)/$1 --device $$* --bba $$@ )
+$$(NEXTPNR_DB_DIR)/%.bba: | $$(NEXTPNR_DB_DIR) $$(XRAYDBDIR)/$1/% $$(ACTIVATE_VENV)
+	( . $$(ACTIVATE_VENV) && $(VENV_PYTHON3) $$(BBAEXPORT) --metadata $$(NEXTPNR_XILINX_META)/$1 --xray $$(XRAYDBDIR)/$1 --device $$* --bba $$@ )
 
-$$(NEXTPNRDBDIR)/%.bin: $$(NEXTPNRDBDIR)/%.bba | $$(NEXTPNRDBDIR)
+$$(NEXTPNR_DB_DIR)/%.bin: $$(NEXTPNR_DB_DIR)/%.bba | $$(NEXTPNR_DB_DIR)
 	$$(BBASM) --le $$< $$@
 
 $1-%.bba:
-	$$(MAKE) $$(NEXTPNRDBDIR)/$$*.bba
+	$$(MAKE) $$(NEXTPNR_DB_DIR)/$$*.bba
 $1-%.bin:
-	$$(MAKE) $$(NEXTPNRDBDIR)/$$*.bin
+	$$(MAKE) $$(NEXTPNR_DB_DIR)/$$*.bin
 $1-%:
-	$$(MAKE) $$(NEXTPNRDBDIR)/$$*.bin
+	$$(MAKE) $$(NEXTPNR_DB_DIR)/$$*.bin
 endef
 
 $(foreach F,artix7 kintex7 spartan7 zynq7,$(eval $(call PRJXRAY_PART_BUILDER,$F)))

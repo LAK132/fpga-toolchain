@@ -38,4 +38,4 @@ source/tinyfpga_bx.py,\
 ))
 
 clean:
-	rm -rf $(TORII_OUTPUT_DIR)
+	rm -rf $(BUILD_DIR)

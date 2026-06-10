@@ -18,6 +18,8 @@ YOSYS_PREFIX=$(SELFDIR)/yosys
 
 # ---
 
+PYTHON3?=python3.11
+
 FASM2BIT_BUILD=$(FASM2BIT_PREFIX)/build
 FASM2BIT=$(FASM2BIT_BUILD)/fasm2bit
 
@@ -57,6 +59,7 @@ $(NEXTPNR_XILINX_META) \
 $(XRAYDBDIR) \
 $(XRAYENV)
 
+.PHONY: all
 all:
 	( $(MAKE) submodules ) && \
 	( $(MAKE) force-torii-hdl ) && \
@@ -64,6 +67,7 @@ all:
 	$(foreach T,$(ALL_DEPENDS),( $(MAKE) $T ) && ) \
 	( $(MAKE) install-lakfpga )
 
+.PHONY: submodules
 submodules:
 	$(MAKE) -j1 \
 	torii-hdl-submodule \
@@ -78,14 +82,13 @@ submodules:
 	openFPGALoader-submodule \
 	mega65-tools-submodule
 
-.PHONY: all
-
 ifeq ($(HOST_SYSTEM),Linux)
 ifneq ($(shell cat /etc/lsb-release | grep Ubuntu),)
 IS_UBUNTU:=TRUE
 endif
 endif
 
+.PHONY: install_dependencies
 install_dependencies:
 ifneq ($(IS_UBUNTU),)
 	apt install build-essential clang bison flex libreadline-dev gawk tcl-dev \
@@ -106,6 +109,7 @@ ifeq ($(HOST_SYSTEM),MSYS)
 	mingw-w64-ucrt-x86_64-libpng mingw-w64-ucrt-x86_64-zlib
 endif
 
+.PHONY: install_msys_dependencies
 install_msys_dependencies:
 	$(call MAKE_IN_MSYS,install_dependencies)
 
@@ -130,17 +134,19 @@ define MAKE_IN_MSYS=
 endef
 endif
 
+.PHONY: test
 test:
 	( cd example && $(MAKE) -j1 clean && $(MAKE) -j1 all )
 
 # --- python venv ---
 
-force-venv $(ACTIVATE_VENV):
+.PHONY: force-venv
+force-venv $(ACTIVATE_VENV) $(VENV_PYTHON3):
 	( cd $(SELFDIR) && $(PYTHON3) -m venv --copies $(INSTALL_PREFIX) )
 
-$(INSTALL_PREFIX): | $(ACTIVATE_VENV)
+$(INSTALL_PREFIX): | $(VENV_PYTHON3)
 
-$(BINDIR) $(LIBDIR) $(INCDIR) $(SHAREDIR): | $(ACTIVATE_VENV)
+$(BINDIR) $(LIBDIR) $(INCDIR) $(SHAREDIR): | $(VENV_PYTHON3)
 	mkdir -p $@
 
 # --- torii-hdl ---
@@ -148,16 +154,18 @@ $(BINDIR) $(LIBDIR) $(INCDIR) $(SHAREDIR): | $(ACTIVATE_VENV)
 $(TORII_HDL_PREFIX)/.git:
 	$(MAKE) torii-hdl-submodule
 
-force-torii-hdl: | $(TORII_HDL_PREFIX)/.git $(ACTIVATE_VENV)
-	( cd $(TORII_HDL_PREFIX) && . $(ACTIVATE_VENV) && $(PYTHON3) -m pip install . )
+.PHONY: force-torii-hdl
+force-torii-hdl: | $(TORII_HDL_PREFIX)/.git $(VENV_PYTHON3)
+	( cd $(TORII_HDL_PREFIX) && . $(ACTIVATE_VENV) && $(VENV_PYTHON3) -m pip install . )
 
 # --- torii-boards ---
 
 $(TORII_BOARDS_PREFIX)/.git:
 	$(MAKE) torii-boards-submodule
 
-force-torii-boards: | $(TORII_BOARDS_PREFIX)/.git $(ACTIVATE_VENV)
-	( cd $(TORII_BOARDS_PREFIX) && . $(ACTIVATE_VENV) && $(PYTHON3) -m pip install . )
+.PHONY: force-torii-boards
+force-torii-boards: | $(TORII_BOARDS_PREFIX)/.git $(VENV_PYTHON3)
+	( cd $(TORII_BOARDS_PREFIX) && . $(ACTIVATE_VENV) && $(VENV_PYTHON3) -m pip install . )
 
 # --- yosys ---
 
@@ -183,6 +191,7 @@ $(YOSYS_PREFIX)/Makefile.conf: $(YOSYS_PREFIX)/Makefile $(YOSYS_PREFIX)/frontend
 	 echo 'GHDL_PREFIX := $(INSTALL_PREFIX)' >> Makefile.conf && \
 	 echo 'CXXFLAGS ?= -I"$(shell $(GHDL) --libghdl-include-dir)"' >> Makefile.conf )
 
+.PHONY: force-yosys
 force-yosys $(YOSYS): $(YOSYS_PREFIX)/Makefile.conf
 	( cd $(YOSYS_PREFIX) && $(MAKE) && $(MAKE) install)
 
@@ -198,6 +207,7 @@ $(LIBTRELLIS_PREFIX)/CMakeLists.txt: | $(LIBTRELLIS_PREFIX)/.git
 $(LIBTRELLIS_PREFIX)/generated/Makefile: $(LIBTRELLIS_PREFIX)/CMakeLists.txt Makefile.conf | $(ACTIVATE_VENV)
 	( cd $(LIBTRELLIS_PREFIX) && . $(ACTIVATE_VENV) && $(CMAKE) . -B generated $(CMAKE_INSTALL_CONFIG) && $(CMAKE) --build generated )
 
+.PHONY: force-prjtrellis
 force-prjtrellis $(PYTRELLIS): $(LIBTRELLIS_PREFIX)/generated/Makefile | $(ACTIVATE_VENV)
 	( cd $(LIBTRELLIS_PREFIX)/generated && . $(ACTIVATE_VENV) && $(MAKE) -j1 && $(MAKE) -j1 install )
 
@@ -220,6 +230,7 @@ $(ICESTORM_PREFIX)/.git:
 
 $(ICESTORM_PREFIX)/Makefile: | $(ICESTORM_PREFIX)/.git
 
+.PHONY: force-icestorm
 force-icestorm $(ICEPACK): $(ICESTORM_PREFIX)/Makefile
 	( cd $(ICESTORM_PREFIX) && PREFIX="$(INSTALL_PREFIX)" $(MAKE) && PREFIX="$(INSTALL_PREFIX)" $(MAKE) -j1 install )
 
@@ -235,6 +246,7 @@ $(PRJXRAY_PREFIX)/CMakeLists.txt $(PRJXRAY_PREFIX)/Makefile: | $(PRJXRAY_PREFIX)
 $(PRJXRAY_PREFIX)/build/Makefile: $(PRJXRAY_PREFIX)/CMakeLists.txt Makefile.conf | $(ACTIVATE_VENV)
 	( cd $(PRJXRAY_PREFIX) && . $(ACTIVATE_VENV) && $(CMAKE) . -B build -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $(CMAKE_INSTALL_CONFIG) )
 
+.PHONY: force-prjxray
 force-prjxray $(FASM2FRAMES): $(PRJXRAY_PREFIX)/build/Makefile | $(ACTIVATE_VENV)
 	( cd $(PRJXRAY_PREFIX) && . $(ACTIVATE_VENV) && ENV_DIR="$(INSTALL_PREFIX)" $(MAKE) -j1 env && cd $(PRJXRAY_PREFIX)/build && $(MAKE) -j1 preinstall && $(CMAKE) $(CMAKE_INSTALL_CONFIG) -P cmake_install.cmake )
 
@@ -279,6 +291,7 @@ $(NEXTPNR_PREFIX)/CMakeLists.txt: | $(NEXTPNR_PREFIX)/.git
 $(NEXTPNR_PREFIX)/build/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS) $(ICEPACK) Makefile.conf | $(ACTIVATE_VENV)
 	( cd $(NEXTPNR_PREFIX) && . $(ACTIVATE_VENV) && $(CMAKE) . -B build -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ecp5;ice40" -DICESTORM_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DTRELLIS_INSTALL_PREFIX="$(INSTALL_PREFIX)" $(CMAKE_INSTALL_CONFIG) && $(CMAKE) --build build )
 
+.PHONY: force-nextpnr
 force-nextpnr $(NEXTPNR_ECP5): $(NEXTPNR_PREFIX)/build/Makefile | $(ACTIVATE_VENV)
 	( cd $(NEXTPNR_PREFIX)/build && . $(ACTIVATE_VENV) && $(MAKE) && $(MAKE) -j1 install )
 
@@ -296,6 +309,7 @@ $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt: | $(NEXTPNR_XILINX_PREFIX)/.git
 $(NEXTPNR_XILINX_PREFIX)/generated/Makefile: $(NEXTPNR_XILINX_PREFIX)/CMakeLists.txt Makefile.conf | $(ACTIVATE_VENV)
 	( cd $(NEXTPNR_XILINX_PREFIX) && . $(ACTIVATE_VENV) && $(CMAKE) . -B generated -DEXTERNAL_CHIPDB=ON -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH=xilinx $(CMAKE_INSTALL_CONFIG) && $(CMAKE) --build generated )
 
+.PHONY: force-nextpnr-xilinx
 force-nextpnr-xilinx $(NEXTPNR_XILINX): $(NEXTPNR_XILINX_PREFIX)/generated/Makefile | $(ACTIVATE_VENV)
 	( cd $(NEXTPNR_XILINX_PREFIX)/generated && . $(ACTIVATE_VENV) && $(MAKE) && $(MAKE) install )
 
@@ -328,7 +342,9 @@ $(NEXTPNR_XILINX_PREFIX)/generated/bba/bbasm: $(NEXTPNR_XILINX)
 $(BBASM): $(NEXTPNR_XILINX_PREFIX)/generated/bba/bbasm
 	cp -f $< $@
 
+.PHONY: bbaexport
 bbaexport: $(BBAEXPORT) $(NEXTPNR_XILINX_META)
+.PHONY: bbasm
 bbasm: $(BBASM)
 
 # --- ghdl ---
@@ -344,6 +360,7 @@ $(GHDL_PREFIX)/configure: | $(GHDL_PREFIX)/.git
 $(GHDL_PREFIX)/Makefile: $(GHDL_PREFIX)/configure Makefile.conf | $(GHDL_PREFIX)/build
 	( cd $(GHDL_PREFIX)/build && ../configure --prefix="$(INSTALL_PREFIX)" --libghdldir="share/ghdl" )
 
+.PHONY: force-ghdl
 force-ghdl $(GHDL): $(GHDL_PREFIX)/Makefile
 	( cd $(GHDL_PREFIX)/build && unset SOURCE_DATE_EPOCH && $(MAKE) -j1 OPT_FLAGS=-fPIC && $(MAKE) install )
 
@@ -369,6 +386,7 @@ else
 	( cd $(OPENFPGALOADER_PREFIX)/build && $(CMAKE) -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_STATIC=OFF -DENABLE_CMSISDAP=OFF $(CMAKE_INSTALL_CONFIG) .. )
 endif
 
+.PHONY: force-openFPGALoader
 force-openFPGALoader $(OPENFPGALOADER): $(OPENFPGALOADER_PREFIX)/build/Makefile
 ifeq ($(HOST_SYSTEM),WSL)
 	$(call MAKE_IN_MSYS,$@)
@@ -383,6 +401,7 @@ $(MEGA65_TOOLS_PREFIX)/.git:
 
 $(MEGA65_TOOLS_PREFIX)/src/tools/coretool: | $(MEGA65_TOOLS_PREFIX)/.git
 
+.PHONY: force-coretool
 force-coretool $(CORETOOL): $(MEGA65_TOOLS_PREFIX)/src/tools/coretool | $(BINDIR)
 	cp -f $< $(CORETOOL)
 
@@ -398,27 +417,29 @@ $(LAKFPGA_PREFIX)/Makefile.conf: Makefile.conf | $(LAKFPGA_PREFIX)
 	echo 'INSTALL_PREFIX:=$(INSTALL_PREFIX)' > $@ && \
 	echo 'VIVADO_PREFIX:=$(VIVADO_PREFIX)' >> $@
 
+.PHONY: install-lakfpga
 install-lakfpga: $(LAKFPGA_PREFIX)/Makefile.conf $(LAKFPGA_PREFIX)/toolchain.mk
 
 # --- pattern targets ---
 
 STEM=$(shell echo '$*' | tr '[:lower:]' '[:upper:]' | tr '-' '_')
 
-force-rebuild-%:
+force-rebuild-%: FORCE
 	$(MAKE) -j1 force-deinit-$*-submodule && \
 	$(MAKE) -j1 $*-submodule && \
 	$(MAKE) force-$*
 
-%-submodule:
+%-submodule: FORCE
 	$(warning init submodule for $* at $($(STEM)_PREFIX))
 	( cd $(SELFDIR) && git submodule update --init $($(STEM)_SUBMODULE_INIT_ARGS) $($(STEM)_PREFIX) )
 
-force-deinit-%-submodule:
+force-deinit-%-submodule: FORCE
 	$(warning deinit submodule for $* at $($(STEM)_PREFIX))
 	( cd $(SELFDIR) && git submodule deinit --force $($(STEM)_PREFIX) )
 
 # --- clean ---
 
+.PHONY: force-deinit-submodules
 force-deinit-submodules:
 	$(MAKE) -j1 \
 	force-deinit-torii-hdl-submodule \
@@ -433,10 +454,14 @@ force-deinit-submodules:
 	force-deinit-openFPGALoader-submodule \
 	force-deinit-mega65-tools-submodule
 
+.PHONY: hard-reset
 hard-reset: force-deinit-submodules
 ifeq ($(INSTALL_PREFIX),$(SELFDIR)/build)
 	rm -rf $(SELFDIR)/build
 endif
 
+.PHONY: force-rebuild-all
 force-rebuild-all: hard-reset
 	$(MAKE) all
+
+FORCE:

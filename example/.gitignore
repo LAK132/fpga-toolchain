@@ -1,4 +1,5 @@
 build/**
+nextpnr-db/**
 *.bit
 *.bin
 *.cor
