@@ -152,9 +152,9 @@ $(strip $2)-$(strip $1)$(strip $3): $$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TOR
 .PHONY: jtag-flash-$(strip $2)-$(strip $1)
 jtag-flash-$(strip $2)-$(strip $1): $(strip $2)-$(strip $1)$(strip $3) | $$(OPENFPGALOADER)
 ifeq ($$(HOST_SYSTEM),WSL)
-	( cmd.exe /c `wslpath -w $$(OPENFPGALOADER)` --bitstream `wslpath -w $$<` --cable $$(FLASH_CABLE) --device $$(FLASH_PORT) )
+	( cmd.exe /c `wslpath -w $$(OPENFPGALOADER)` --bitstream `wslpath -w $$<` --cable $$(FLASH_CABLE) --device $$(FLASH_PORT) 2> `wslpath -w $$(BUILD_DIR)/flash.log` )
 else
-	$$(OPENFPGALOADER) --bitstream $$< --cable $$(FLASH_CABLE) --device $$(FLASH_PORT)
+	$$(OPENFPGALOADER) --bitstream $$< --cable $$(FLASH_CABLE) --device $$(FLASH_PORT) 2> $$(BUILD_DIR)/flash.log
 endif
 
 $$(BUILD_DIR)/$(strip $1)/$(strip $2):
