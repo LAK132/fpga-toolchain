@@ -264,9 +264,10 @@ $(XRAY_SHARE_DIR)/environment.python.sh: $(PRJXRAY_PREFIX)/utils/environment.pyt
 $(XRAY_SHARE_DIR)/vivado.sh: $(PRJXRAY_PREFIX)/utils/vivado.sh | $(XRAY_SHARE_DIR)
 	cp -f $< $@
 
-$(XRAYENV): $(XRAY_SHARE_DIR)/prjxray_settings.sh $(XRAY_SHARE_DIR)/environment.sh $(XRAY_SHARE_DIR)/environment.python.sh $(XRAY_SHARE_DIR)/vivado.sh Makefile.conf
-	@echo "export XRAY_VIVADO_SETTINGS=$(XRAY_SHARE_DIR)/prjxray_settings.sh;source $(XRAY_SHARE_DIR)/environment.sh" > $@ && \
-	chmod +x $@
+.PHONY: force-prjxray-env
+force-prjxray-env $(XRAYENV): $(XRAY_SHARE_DIR)/prjxray_settings.sh $(XRAY_SHARE_DIR)/environment.sh $(XRAY_SHARE_DIR)/environment.python.sh $(XRAY_SHARE_DIR)/vivado.sh Makefile.conf
+	@echo "export XRAY_VIVADO_SETTINGS=$(XRAY_SHARE_DIR)/prjxray_settings.sh;source $(XRAY_SHARE_DIR)/environment.sh" > $(XRAYENV) && \
+	chmod +x $(XRAYENV)
 
 # To depend on this correctly, you must depend on $(XRAYDBDIR)/<FAMILY>/<PART>
 # example: $(XRAYDBDIR)/artix7/xc7a100tcsg324-1
@@ -288,14 +289,12 @@ $(NEXTPNR_PREFIX)/.git:
 
 $(NEXTPNR_PREFIX)/CMakeLists.txt: | $(NEXTPNR_PREFIX)/.git
 
-$(NEXTPNR_PREFIX)/build/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS) $(ICEPACK) Makefile.conf | $(ACTIVATE_VENV)
-	( cd $(NEXTPNR_PREFIX) && . $(ACTIVATE_VENV) && $(CMAKE) . -B build -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ecp5;ice40" -DICESTORM_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DTRELLIS_INSTALL_PREFIX="$(INSTALL_PREFIX)" $(CMAKE_INSTALL_CONFIG) && $(CMAKE) --build build )
+$(NEXTPNR_PREFIX)/build/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS) $(ICEPACK) Makefile.conf | $(ACTIVATE_VENV) $(XRAYDBDIR)
+	( cd $(NEXTPNR_PREFIX) && . $(ACTIVATE_VENV) && $(CMAKE) . -B build -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ecp5;ice40;himbaechel" -DICESTORM_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DTRELLIS_INSTALL_PREFIX="$(INSTALL_PREFIX)" -DHIMBAECHEL_UARCH="xilinx" -DHIMBAECHEL_SPLIT=1 -DHIMBAECHEL_PRJXRAY_DB="$(XRAYDBDIR)" $(CMAKE_INSTALL_CONFIG) && $(CMAKE) --build build )
 
 .PHONY: force-nextpnr
-force-nextpnr $(NEXTPNR_ECP5): $(NEXTPNR_PREFIX)/build/Makefile | $(ACTIVATE_VENV)
+force-nextpnr $(NEXTPNR_ECP5) $(NEXTPNR_ICE40) $(NEXTPNR_HIMBAECHEL_XILINX): $(NEXTPNR_PREFIX)/build/Makefile | $(ACTIVATE_VENV)
 	( cd $(NEXTPNR_PREFIX)/build && . $(ACTIVATE_VENV) && $(MAKE) && $(MAKE) -j1 install )
-
-$(NEXTPNR_ICE40): $(NEXTPNR_ECP5)
 
 # --- nextpnr-xilinx ---
 

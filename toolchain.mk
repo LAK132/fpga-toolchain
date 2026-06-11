@@ -90,6 +90,8 @@ CORETOOL=$(BINDIR)/coretool
 
 NEXTPNR_ECP5=$(BINDIR)/nextpnr-ecp5$(EXE)
 NEXTPNR_ICE40=$(BINDIR)/nextpnr-ice40$(EXE)
+NEXTPNR_HIMBAECHEL_XILINX=$(BINDIR)/nextpnr-himbaechel-xilinx$(EXE)
+NEXTPNR_SHARE=$(SHAREDIR)/nextpnr
 
 ECPPACK=$(BINDIR)/ecppack$(EXE)
 
@@ -106,6 +108,7 @@ XRAY_SHARE_DIR=$(SHAREDIR)/prjxray
 XRAYDBDIR=$(XRAY_SHARE_DIR)/database
 XRAYENV=$(XRAY_SHARE_DIR)/prjxray_env.sh
 NEXTPNR_DB_DIR?=nextpnr-db
+XC7FRAMES2BIT_OPTS?=--compressed
 
 YOSYS=$(BINDIR)/yosys$(EXE)
 
@@ -131,7 +134,7 @@ FLASH_PORT?=/dev/ttyUSB1
 # --- generic targets ---
 
 define DECLARE_CORE=
-$(strip $2)-$(strip $1)$(strip $3): $(BUILD_DIR)/$(strip $1)/$(strip $2)/$(TORII_OUTPUT_DIR)/top$(strip $3)
+$(strip $2)-$(strip $1)$(strip $3): $$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3)
 	cp -f $$< $$@
 
 .PHONY: jtag-flash-$(strip $2)-$(strip $1)
@@ -142,32 +145,77 @@ else
 	$$(OPENFPGALOADER) --bitstream $$< --cable $$(FLASH_CABLE) --device $$(FLASH_PORT)
 endif
 
-$(BUILD_DIR)/$(strip $1)/$(strip $2):
+$$(BUILD_DIR)/$(strip $1)/$(strip $2):
 	mkdir -p $$@
+endef
 
-.PHONY: $(BUILD_DIR)/$(strip $1)/$(strip $2)/$(TORII_OUTPUT_DIR)/top$(strip $3)
-$(BUILD_DIR)/$(strip $1)/$(strip $2)/$(TORII_OUTPUT_DIR)/top$(strip $3): \
-$4 $5 | $(BUILD_DIR)/$(strip $1)/$(strip $2) \
+define DECLARE_ICE40=
+$(call DECLARE_CORE,$1,$2,$3)
+
+.PHONY: $$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3)
+$$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3): \
+$4 | $$(BUILD_DIR)/$(strip $1)/$(strip $2) \
 $$(ACTIVATE_VENV) \
 $$(YOSYS) \
-$$(NEXTPNR_XILINX) $$(XRAYENV) $$(FASM2FRAMES) $$(XC7FRAMES2BIT) \
-$$(NEXTPNR_ECP5) $$(ECPPACK) \
 $$(NEXTPNR_ICE40) $$(ICEPACK)
 	( cd $(BUILD_DIR)/$(strip $1)/$(strip $2) && . $$(ACTIVATE_VENV) && \
-	$6 \
+	$5 \
+	YOSYS="$$(YOSYS)" \
+	NEXTPNR_ICE40="$$(NEXTPNR_ICE40)" \
+	ICEPACK="$$(ICEPACK)" \
+	$$(VENV_PYTHON3) $$(abspath $$<) )
+endef
+
+define DECLARE_ECP5=
+$(call DECLARE_CORE,$1,$2,$3)
+
+.PHONY: $$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3)
+$$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3): \
+$4 | $$(BUILD_DIR)/$(strip $1)/$(strip $2) \
+$$(ACTIVATE_VENV) \
+$$(YOSYS) \
+$$(NEXTPNR_ECP5) $$(ECPPACK)
+	( cd $$(BUILD_DIR)/$(strip $1)/$(strip $2) && . $$(ACTIVATE_VENV) && \
+	$5 \
+	YOSYS="$$(YOSYS)" \
+	NEXTPNR_ECP5="$$(NEXTPNR_ECP5)"\
+	ECPPACK="$$(ECPPACK)" \
+	$$(VENV_PYTHON3) $$(abspath $$<) )
+endef
+
+define DECLARE_XC7=
+$(call DECLARE_CORE,$1,$2,$3)
+
+ifeq ($(strip $6),)
+$(strip $5)$(strip $6):
+else
+$(strip $5)$(strip $6): $$(NEXTPNR_DB_DIR)/$(strip $5)$(strip $6).bin
+endif
+
+.PHONY: $$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3)
+$$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3): \
+$4 $(strip $5)$(strip $6) \
+| $$(BUILD_DIR)/$(strip $1)/$(strip $2) \
+$$(ACTIVATE_VENV) \
+$$(YOSYS) \
+$$(NEXTPNR_XILINX) $$(NEXTPNR_HIMBAECHEL_XILINX) $$(XRAYENV) $$(FASM2FRAMES) $$(XC7FRAMES2BIT)
+	( cd $$(BUILD_DIR)/$(strip $1)/$(strip $2) && . $$(ACTIVATE_VENV) && \
+	$7 \
 	YOSYS="$$(YOSYS)" \
 	NEXTPNR_XILINX="$$(NEXTPNR_XILINX)" \
+	NEXTPNR_HIMBAECHEL_XILINX="$$(NEXTPNR_HIMBAECHEL_XILINX)" \
 	TORII_ENV_YOSYS_NEXTPNR="$$(XRAYENV)" \
 	FASM2FRAMES="$$(FASM2FRAMES)" \
 	XC7FRAMES2BIT="$$(XC7FRAMES2BIT)" \
 	TORII_NEXTPNR_DB_DIR="$$(abspath $$(NEXTPNR_DB_DIR))" \
+	TORII_NEXTPNR_HIMBAECHEL_DB_DIR="$$(NEXTPNR_SHARE)/himbaechel/xilinx" \
 	TORII_PRJXRAY_DB_DIR="$$(XRAYDBDIR)" \
-	TORII_XC7FRAMES2BIT_OPTS="--compressed" \
-	NEXTPNR_ECP5="$$(NEXTPNR_ECP5)"\
-	ECPPACK="$$(ECPPACK)" \
-	NEXTPNR_ICE40="$$(NEXTPNR_ICE40)" \
-	ICEPACK="$$(ICEPACK)" \
-	$(VENV_PYTHON3) $$(abspath $$<) )
+	TORII_XC7FRAMES2BIT_OPTS="$$(XC7FRAMES2BIT_OPTS)" \
+	$$(VENV_PYTHON3) $$(abspath $$<) )
+endef
+
+define DECLARE_MEGA65=
+$(call DECLARE_XC7,$1,$2,$3,$4,$5,$6,$7)
 
 .PHONY: $(strip $2)-$(strip $1).cor
 $(strip $2)-$(strip $1).cor: $(strip $2)-$(strip $1)$(strip $3)
@@ -181,17 +229,10 @@ $(NEXTPNR_DB_DIR):
 
 define PRJXRAY_PART_BUILDER=
 $$(NEXTPNR_DB_DIR)/%.bba: | $$(NEXTPNR_DB_DIR) $$(XRAYDBDIR)/$1/% $$(ACTIVATE_VENV)
-	( . $$(ACTIVATE_VENV) && $(VENV_PYTHON3) $$(BBAEXPORT) --metadata $$(NEXTPNR_XILINX_META)/$1 --xray $$(XRAYDBDIR)/$1 --device $$* --bba $$@ )
+	( . $$(ACTIVATE_VENV) && $$(VENV_PYTHON3) $$(BBAEXPORT) --metadata $$(NEXTPNR_XILINX_META)/$1 --xray $$(XRAYDBDIR)/$1 --device $$* --bba $$@ )
 
 $$(NEXTPNR_DB_DIR)/%.bin: $$(NEXTPNR_DB_DIR)/%.bba | $$(NEXTPNR_DB_DIR)
 	$$(BBASM) --le $$< $$@
-
-$1-%.bba:
-	$$(MAKE) $$(NEXTPNR_DB_DIR)/$$*.bba
-$1-%.bin:
-	$$(MAKE) $$(NEXTPNR_DB_DIR)/$$*.bin
-$1-%:
-	$$(MAKE) $$(NEXTPNR_DB_DIR)/$$*.bin
 endef
 
 $(foreach F,artix7 kintex7 spartan7 zynq7,$(eval $(call PRJXRAY_PART_BUILDER,$F)))

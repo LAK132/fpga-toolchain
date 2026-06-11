@@ -16,7 +16,7 @@ class Top(Elaboratable):
 
 if __name__ == "__main__":
 	import os
-	Mega65r3Platform(toolchain="yosys_nextpnr").build(
+	Mega65r3Platform(toolchain="yosys_nextpnr-himbaechel").build(
 		Top(),
 		do_build=True,
 		do_program=False)

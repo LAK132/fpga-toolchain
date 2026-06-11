@@ -45,7 +45,7 @@
 	ignore = dirty
 [submodule "torii-hdl"]
 	path = torii-hdl
-	url = https://codeberg.org/shrine-maiden-heavy-industries/torii-hdl
+	url = https://codeberg.org/LAK132/torii-hdl
 [submodule "torii-boards"]
 	path = torii-boards
 	url = https://codeberg.org/shrine-maiden-heavy-industries/torii-boards

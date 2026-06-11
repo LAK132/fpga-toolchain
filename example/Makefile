@@ -13,28 +13,27 @@ include $(TOOLCHAIN_PREFIX)/share/lakfpga/toolchain.mk
 # 5: Optional Makefile build dependencies
 # 6: Optional Torii environment arguments (WX="AB" YZ="CD" etc)
 
-$(eval $(call DECLARE_CORE,\
+$(eval $(call DECLARE_MEGA65,\
 mega65r3,\
 blink,\
 .bit,\
 source/mega65r3.py,\
-artix7-xc7a200tfbg484-2,\
+xc7a200t,\
+fbg484-2,\
 ))
 
-$(eval $(call DECLARE_CORE,\
+$(eval $(call DECLARE_ECP5,\
 orange-crab,\
 blink,\
 .bit,\
 source/orange_crab.py,\
-,\
 ))
 
-$(eval $(call DECLARE_CORE,\
+$(eval $(call DECLARE_ICE40,\
 tinyfpga-bx,\
 blink,\
 .bin,\
 source/tinyfpga_bx.py,\
-,\
 ))
 
 clean:
