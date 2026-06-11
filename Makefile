@@ -49,7 +49,7 @@ all:
 
 .PHONY: all-fast
 all-fast:
-	$(MAKE) -j$(nproc) all
+	$(MAKE) -j$(shell nproc) all
 
 .PHONY: force-all-ECP5
 force-all-ECP5:
@@ -82,7 +82,7 @@ force-all:
 
 .PHONY: force-all-fast
 force-all-fast:
-	$(MAKE) -j$(nproc) force-all
+	$(MAKE) -j$(shell nproc) force-all
 
 .PHONY: submodules
 submodules:
