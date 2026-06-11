@@ -32,8 +32,7 @@ $(eval $(call DECLARE_MEGA65_CORE,\
 mega65r3,\
 vhdl-blink,\
 .bit,\
-source/mega65r3.py $(BUILD_DIR)/mega65r3/vhdl-blink/build/work-obj93.cf,\
-TORII_SCRIPT_AFTER_READ="ghdl $(abspath source/blink.vhdl) -e led_blink;"\
+source/mega65r3.py,\
 ))
 
 $(eval $(call DECLARE_CORE,\

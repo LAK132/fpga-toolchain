@@ -19,6 +19,7 @@ class Top(Elaboratable):
 if __name__ == "__main__":
 	import os
 	Mega65r3Platform(toolchain="yosys_nextpnr-himbaechel").build(
+		script_after_read = f"ghdl {Path(__file__).parent / f"blink.vhdl"} -e led_blink;"
 		Top(),
 		do_build=True,
 		do_program=False)
