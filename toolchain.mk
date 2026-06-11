@@ -70,7 +70,7 @@ include $(SELFDIR)/Makefile.conf
 INSTALL_PREFIX?=$(SELFDIR)/build
 ARCHITECTURES?=XC7 ICE40 ECP5
 BUILD_DIR?=build
-XC7FRAMES2BIT_OPTS?=--compressed
+# XC7FRAMES2BIT_OPTS?=--compressed
 
 # openFPGALoader --list-cables
 FLASH_CABLE?=bmd
