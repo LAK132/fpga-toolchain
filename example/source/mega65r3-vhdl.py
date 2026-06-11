@@ -1,4 +1,4 @@
-from torii_blink import *
+from vhdl_blink import *
 from torii.hdl import *
 from torii_boards.xilinx.artix7.mega65 import *
 
@@ -10,7 +10,7 @@ class Top(Elaboratable):
 		led = platform.request("led")
 		eth_led = platform.request("ethernet").led
 
-		m.submodules += ToriiBlink(led)
+		m.submodules += VhdlBlink(led)
 		m.d.sync += eth_led.eq(led)
 
 		return m

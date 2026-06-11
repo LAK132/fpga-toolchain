@@ -6,13 +6,16 @@ __all__ = ["VerilogBlink"]
 
 
 class VerilogBlink(Elaboratable):
+	def __init__(self, led):
+		self.led = led
+
 	def elaborate(self, platform):
 		m = Module()
 
 		m.submodules += Instance(
 			"led_blink",
 			("i", "clock", ClockSignal()),
-			("o", "led", platform.request("led"))
+			("o", "led", self.led)
 		)
 
 		absolute_filename = Path(__file__).parent / f"blink.v"

@@ -68,51 +68,9 @@ endif
 include $(SELFDIR)/Makefile.conf
 
 INSTALL_PREFIX?=$(SELFDIR)/build
-VIVADO_PREFIX?=/opt/Xilinx
+ARCHITECTURES?=XC7 ICE40 ECP5
 BUILD_DIR?=build
-
-TORII_OUTPUT_DIR=build
-
-BINDIR=$(INSTALL_PREFIX)/bin
-LIBDIR=$(INSTALL_PREFIX)/lib
-INCDIR=$(INSTALL_PREFIX)/include
-SHAREDIR=$(INSTALL_PREFIX)/share
-
-ACTIVATE_VENV=$(BINDIR)/activate
-
-GHDL=$(BINDIR)/ghdl$(EXE)
-
-ICEPACK=$(BINDIR)/icepack$(EXE)
-
-OPENFPGALOADER=$(BINDIR)/openFPGALoader$(USB_EXE)
-
-CORETOOL=$(BINDIR)/coretool
-
-NEXTPNR_ECP5=$(BINDIR)/nextpnr-ecp5$(EXE)
-NEXTPNR_ICE40=$(BINDIR)/nextpnr-ice40$(EXE)
-NEXTPNR_HIMBAECHEL_XILINX=$(BINDIR)/nextpnr-himbaechel-xilinx$(EXE)
-NEXTPNR_SHARE=$(SHAREDIR)/nextpnr
-
-ECPPACK=$(BINDIR)/ecppack$(EXE)
-
-NEXTPNR_XILINX=$(BINDIR)/nextpnr-xilinx$(EXE)
-NEXTPNR_XILINX_SHARE=$(SHAREDIR)/nextpnr-xilinx
-NEXTPNR_XILINX_PYTHON=$(NEXTPNR_XILINX_SHARE)/python
-NEXTPNR_XILINX_META=$(NEXTPNR_XILINX_SHARE)/meta
-BBAEXPORT=$(NEXTPNR_XILINX_PYTHON)/bbaexport.py
-BBASM=$(BINDIR)/bbasm$(EXE)
-
-FASM2FRAMES=$(BINDIR)/fasm2frames
-XC7FRAMES2BIT=$(BINDIR)/xc7frames2bit$(EXE)
-XRAY_SHARE_DIR=$(SHAREDIR)/prjxray
-XRAYDBDIR=$(XRAY_SHARE_DIR)/database
-XRAYENV=$(XRAY_SHARE_DIR)/prjxray_env.sh
-NEXTPNR_DB_DIR?=nextpnr-db
 XC7FRAMES2BIT_OPTS?=--compressed
-
-YOSYS=$(BINDIR)/yosys$(EXE)
-
-VENV_PYTHON3=$(BINDIR)/python3$(EXE)
 
 # openFPGALoader --list-cables
 FLASH_CABLE?=bmd
@@ -129,11 +87,65 @@ endif
 ifeq ($(HOST_SYSTEM),Windows)
 FLASH_PORT?=COM4
 endif
-FLASH_PORT?=/dev/ttyUSB1
+FLASH_PORT?=/dev/ttyACM0
+
+TORII_OUTPUT_DIR=build
+
+BINDIR=$(INSTALL_PREFIX)/bin
+LIBDIR=$(INSTALL_PREFIX)/lib
+INCDIR=$(INSTALL_PREFIX)/include
+SHAREDIR=$(INSTALL_PREFIX)/share
+
+ACTIVATE_VENV=$(BINDIR)/activate
+
+GHDL=$(BINDIR)/ghdl$(EXE)
+
+OPENFPGALOADER=$(BINDIR)/openFPGALoader$(USB_EXE)
+
+CORETOOL=$(BINDIR)/coretool
+
+NEXTPNR_ECP5=$(BINDIR)/nextpnr-ecp5$(EXE)
+NEXTPNR_ICE40=$(BINDIR)/nextpnr-ice40$(EXE)
+NEXTPNR_HIMBAECHEL_XILINX=$(BINDIR)/nextpnr-himbaechel-xilinx$(EXE)
+NEXTPNR_SHARE=$(SHAREDIR)/nextpnr
+
+ICEPACK=$(BINDIR)/icepack$(EXE)
+
+ECPPACK=$(BINDIR)/ecppack$(EXE)
+
+FASM2FRAMES=$(BINDIR)/fasm2frames
+XC7FRAMES2BIT=$(BINDIR)/xc7frames2bit$(EXE)
+XRAY_SHARE_DIR=$(SHAREDIR)/prjxray
+XRAY_DB_DIR=$(XRAY_SHARE_DIR)/database
+XRAY_ENV=$(XRAY_SHARE_DIR)/prjxray_env.sh
+
+YOSYS=$(BINDIR)/yosys$(EXE)
+
+VENV_PYTHON3=$(BINDIR)/python3$(EXE)
+
+ARCH_XC7_DEPS=$(NEXTPNR_HIMBAECHEL_XILINX) $(XRAY_ENV) $(FASM2FRAMES) $(XC7FRAMES2BIT) $(CORETOOL)
+ARCH_XC7_ENVS=\
+NEXTPNR_HIMBAECHEL_XILINX="$(NEXTPNR_HIMBAECHEL_XILINX)"\
+TORII_ENV_YOSYS_NEXTPNR="$(XRAY_ENV)" \
+FASM2FRAMES="$(FASM2FRAMES)" \
+XC7FRAMES2BIT="$(XC7FRAMES2BIT)" \
+TORII_NEXTPNR_HIMBAECHEL_DB_DIR="$(NEXTPNR_SHARE)/himbaechel/xilinx" \
+TORII_PRJXRAY_DB_DIR="$(XRAY_DB_DIR)" \
+TORII_XC7FRAMES2BIT_OPTS="$(XC7FRAMES2BIT_OPTS)"
+
+ARCH_ICE40_DEPS=$(NEXTPNR_ICE40) $(ICEPACK)
+ARCH_ICE40_ENVS=NEXTPNR_ICE40="$(NEXTPNR_ICE40)" ICEPACK="$(ICEPACK)"
+
+ARCH_ECP5_DEPS=$(NEXTPNR_ECP5) $(ECPPACK)
+ARCH_ECP5_ENVS=NEXTPNR_ECP5="$(NEXTPNR_ECP5)" ECPPACK="$(ECPPACK)"
+
+ALL_ARCH_DEPS=$(ACTIVATE_VENV) $(GHDL) $(YOSYS) $(foreach A,$(ARCHITECTURES),$(ARCH_$(strip $A)_DEPS) )
+ALL_ARCH_ENVS=YOSYS="$(YOSYS)" $(foreach A,$(ARCHITECTURES),$(ARCH_$(strip $A)_ENVS) )
 
 # --- generic targets ---
 
 define DECLARE_CORE=
+.PHONY: $(strip $2)-$(strip $1)$(strip $3)
 $(strip $2)-$(strip $1)$(strip $3): $$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3)
 	cp -f $$< $$@
 
@@ -147,92 +159,16 @@ endif
 
 $$(BUILD_DIR)/$(strip $1)/$(strip $2):
 	mkdir -p $$@
-endef
-
-define DECLARE_ICE40=
-$(call DECLARE_CORE,$1,$2,$3)
 
 .PHONY: $$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3)
-$$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3): \
-$4 | $$(BUILD_DIR)/$(strip $1)/$(strip $2) \
-$$(ACTIVATE_VENV) \
-$$(YOSYS) \
-$$(NEXTPNR_ICE40) $$(ICEPACK)
-	( cd $(BUILD_DIR)/$(strip $1)/$(strip $2) && . $$(ACTIVATE_VENV) && \
-	$5 \
-	YOSYS="$$(YOSYS)" \
-	NEXTPNR_ICE40="$$(NEXTPNR_ICE40)" \
-	ICEPACK="$$(ICEPACK)" \
-	$$(VENV_PYTHON3) $$(abspath $$<) )
+$$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3): $4 | $$(BUILD_DIR)/$(strip $1)/$(strip $2) $$(ALL_ARCH_DEPS)
+	( cd $$(BUILD_DIR)/$(strip $1)/$(strip $2) && . $$(ACTIVATE_VENV) && $5 $$(ALL_ARCH_ENVS) $$(VENV_PYTHON3) $$(abspath $$<) )
 endef
 
-define DECLARE_ECP5=
-$(call DECLARE_CORE,$1,$2,$3)
-
-.PHONY: $$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3)
-$$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3): \
-$4 | $$(BUILD_DIR)/$(strip $1)/$(strip $2) \
-$$(ACTIVATE_VENV) \
-$$(YOSYS) \
-$$(NEXTPNR_ECP5) $$(ECPPACK)
-	( cd $$(BUILD_DIR)/$(strip $1)/$(strip $2) && . $$(ACTIVATE_VENV) && \
-	$5 \
-	YOSYS="$$(YOSYS)" \
-	NEXTPNR_ECP5="$$(NEXTPNR_ECP5)"\
-	ECPPACK="$$(ECPPACK)" \
-	$$(VENV_PYTHON3) $$(abspath $$<) )
-endef
-
-define DECLARE_XC7=
-$(call DECLARE_CORE,$1,$2,$3)
-
-ifeq ($(strip $6),)
-$(strip $5)$(strip $6):
-else
-$(strip $5)$(strip $6): $$(NEXTPNR_DB_DIR)/$(strip $5)$(strip $6).bin
-endif
-
-.PHONY: $$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3)
-$$(BUILD_DIR)/$(strip $1)/$(strip $2)/$$(TORII_OUTPUT_DIR)/top$(strip $3): \
-$4 $(strip $5)$(strip $6) \
-| $$(BUILD_DIR)/$(strip $1)/$(strip $2) \
-$$(ACTIVATE_VENV) \
-$$(YOSYS) \
-$$(NEXTPNR_XILINX) $$(NEXTPNR_HIMBAECHEL_XILINX) $$(XRAYENV) $$(FASM2FRAMES) $$(XC7FRAMES2BIT)
-	( cd $$(BUILD_DIR)/$(strip $1)/$(strip $2) && . $$(ACTIVATE_VENV) && \
-	$7 \
-	YOSYS="$$(YOSYS)" \
-	NEXTPNR_XILINX="$$(NEXTPNR_XILINX)" \
-	NEXTPNR_HIMBAECHEL_XILINX="$$(NEXTPNR_HIMBAECHEL_XILINX)" \
-	TORII_ENV_YOSYS_NEXTPNR="$$(XRAYENV)" \
-	FASM2FRAMES="$$(FASM2FRAMES)" \
-	XC7FRAMES2BIT="$$(XC7FRAMES2BIT)" \
-	TORII_NEXTPNR_DB_DIR="$$(abspath $$(NEXTPNR_DB_DIR))" \
-	TORII_NEXTPNR_HIMBAECHEL_DB_DIR="$$(NEXTPNR_SHARE)/himbaechel/xilinx" \
-	TORII_PRJXRAY_DB_DIR="$$(XRAYDBDIR)" \
-	TORII_XC7FRAMES2BIT_OPTS="$$(XC7FRAMES2BIT_OPTS)" \
-	$$(VENV_PYTHON3) $$(abspath $$<) )
-endef
-
-define DECLARE_MEGA65=
-$(call DECLARE_XC7,$1,$2,$3,$4,$5,$6,$7)
+define DECLARE_MEGA65_CORE=
+$(call DECLARE_CORE,$1,$2,$3,$4,$5)
 
 .PHONY: $(strip $2)-$(strip $1).cor
-$(strip $2)-$(strip $1).cor: $(strip $2)-$(strip $1)$(strip $3)
+$(strip $2)-$(strip $1).cor: $(strip $2)-$(strip $1)$(strip $3) | $$(CORETOOL)
 	$$(CORETOOL) --build $$@ --bit $$< --target $(strip $1) --bit-name $(strip $2) --bit-version 1 --force
 endef
-
-# --- Xilinx specific targets ---
-
-$(NEXTPNR_DB_DIR):
-	mkdir -p $@
-
-define PRJXRAY_PART_BUILDER=
-$$(NEXTPNR_DB_DIR)/%.bba: | $$(NEXTPNR_DB_DIR) $$(XRAYDBDIR)/$1/% $$(ACTIVATE_VENV)
-	( . $$(ACTIVATE_VENV) && $$(VENV_PYTHON3) $$(BBAEXPORT) --metadata $$(NEXTPNR_XILINX_META)/$1 --xray $$(XRAYDBDIR)/$1 --device $$* --bba $$@ )
-
-$$(NEXTPNR_DB_DIR)/%.bin: $$(NEXTPNR_DB_DIR)/%.bba | $$(NEXTPNR_DB_DIR)
-	$$(BBASM) --le $$< $$@
-endef
-
-$(foreach F,artix7 kintex7 spartan7 zynq7,$(eval $(call PRJXRAY_PART_BUILDER,$F)))
