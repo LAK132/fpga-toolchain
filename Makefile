@@ -322,32 +322,32 @@ $(NEXTPNR_PREFIX)/.git:
 
 $(NEXTPNR_PREFIX)/CMakeLists.txt: | $(NEXTPNR_PREFIX)/.git
 
-$(NEXTPNR_PREFIX)/build-ecp5/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS) Makefile.conf | $(ACTIVATE_VENV)
+$(NEXTPNR_PREFIX)/cmake-build-ecp5/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(PYTRELLIS) Makefile.conf | $(ACTIVATE_VENV)
 	( cd $(NEXTPNR_PREFIX) && . $(ACTIVATE_VENV) && \
-	$(CMAKE) . -B build-ecp5 -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ecp5" -DTRELLIS_INSTALL_PREFIX="$(INSTALL_PREFIX)" $(CMAKE_INSTALL_CONFIG) && \
-	$(CMAKE) --build build-ecp5 )
+	$(CMAKE) . -B cmake-build-ecp5 -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ecp5" -DTRELLIS_INSTALL_PREFIX="$(INSTALL_PREFIX)" $(CMAKE_INSTALL_CONFIG) && \
+	$(CMAKE) --build cmake-build-ecp5 )
 
 .PHONY: force-nextpnr-ECP5
-force-nextpnr-ECP5 $(NEXTPNR_ECP5): $(NEXTPNR_PREFIX)/build-ecp5/Makefile | $(ACTIVATE_VENV)
-	( cd $(NEXTPNR_PREFIX)/build-ecp5 && . $(ACTIVATE_VENV) && $(MAKE) && $(MAKE) -j1 install )
+force-nextpnr-ECP5 $(NEXTPNR_ECP5): $(NEXTPNR_PREFIX)/cmake-build-ecp5/Makefile | $(ACTIVATE_VENV)
+	( cd $(NEXTPNR_PREFIX)/cmake-build-ecp5 && . $(ACTIVATE_VENV) && $(MAKE) && $(MAKE) -j1 install )
 
-$(NEXTPNR_PREFIX)/build-ice40/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(ICEPACK) Makefile.conf | $(ACTIVATE_VENV)
+$(NEXTPNR_PREFIX)/cmake-build-ice40/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt $(ICEPACK) Makefile.conf | $(ACTIVATE_VENV)
 	( cd $(NEXTPNR_PREFIX) && . $(ACTIVATE_VENV) && \
-	$(CMAKE) . -B build-ice40 -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ice40" -DICESTORM_INSTALL_PREFIX="$(INSTALL_PREFIX)" $(CMAKE_INSTALL_CONFIG) && \
-	$(CMAKE) --build build-ice40 )
+	$(CMAKE) . -B cmake-build-ice40 -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="ice40" -DICESTORM_INSTALL_PREFIX="$(INSTALL_PREFIX)" $(CMAKE_INSTALL_CONFIG) && \
+	$(CMAKE) --build cmake-build-ice40 )
 
 .PHONY: force-nextpnr-ICE40
-force-nextpnr-ICE40 $(NEXTPNR_ICE40): $(NEXTPNR_PREFIX)/build-ice40/Makefile | $(ACTIVATE_VENV)
-	( cd $(NEXTPNR_PREFIX)/build-ice40 && . $(ACTIVATE_VENV) && $(MAKE) && $(MAKE) -j1 install )
+force-nextpnr-ICE40 $(NEXTPNR_ICE40): $(NEXTPNR_PREFIX)/cmake-build-ice40/Makefile | $(ACTIVATE_VENV)
+	( cd $(NEXTPNR_PREFIX)/cmake-build-ice40 && . $(ACTIVATE_VENV) && $(MAKE) && $(MAKE) -j1 install )
 
-$(NEXTPNR_PREFIX)/build-xilinx/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt Makefile.conf | $(ACTIVATE_VENV) $(XRAY_DB_DIR)
+$(NEXTPNR_PREFIX)/cmake-build-xilinx/Makefile: $(NEXTPNR_PREFIX)/CMakeLists.txt Makefile.conf | $(ACTIVATE_VENV) $(XRAY_DB_DIR)
 	( cd $(NEXTPNR_PREFIX) && . $(ACTIVATE_VENV) && \
-	$(CMAKE) . -B build-xilinx -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="himbaechel" -DHIMBAECHEL_UARCH="xilinx" -DHIMBAECHEL_SPLIT=1 -DHIMBAECHEL_PRJXRAY_DB="$(XRAY_DB_DIR)" $(CMAKE_INSTALL_CONFIG) && \
-	$(CMAKE) --build build-xilinx )
+	$(CMAKE) . -B cmake-build-xilinx -DBUILD_PYTHON=$(NEXTPNR_PYTHON) -DBUILD_GUI=OFF -DARCH="himbaechel" -DHIMBAECHEL_UARCH="xilinx" -DHIMBAECHEL_SPLIT=1 -DHIMBAECHEL_PRJXRAY_DB="$(XRAY_DB_DIR)" $(CMAKE_INSTALL_CONFIG) && \
+	$(CMAKE) --build cmake-build-xilinx )
 
 .PHONY: force-nextpnr-XC7
-force-nextpnr-XC7 $(NEXTPNR_HIMBAECHEL_XILINX): $(NEXTPNR_PREFIX)/build-xilinx/Makefile | $(ACTIVATE_VENV)
-	( cd $(NEXTPNR_PREFIX)/build-xilinx && . $(ACTIVATE_VENV) && $(MAKE) && $(MAKE) -j1 install )
+force-nextpnr-XC7 $(NEXTPNR_HIMBAECHEL_XILINX): $(NEXTPNR_PREFIX)/cmake-build-xilinx/Makefile | $(ACTIVATE_VENV)
+	( cd $(NEXTPNR_PREFIX)/cmake-build-xilinx && . $(ACTIVATE_VENV) && $(MAKE) && $(MAKE) -j1 install )
 
 .PHONY: force-nextpnr
 force-nextpnr: $(foreach A,$(ARCHITECTURES),force-nextpnr-$(strip $A) )
