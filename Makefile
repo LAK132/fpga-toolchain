@@ -51,6 +51,22 @@ all:
 all-fast:
 	$(MAKE) -j$(nproc) all
 
+.PHONY: force-all-ECP5
+force-all-ECP5:
+	( $(MAKE) force-prjtrellis ) && \
+	( $(MAKE) force-nextpnr-ECP5 )
+
+.PHONY: force-all-ICE40
+force-all-ICE40:
+	( $(MAKE) force-icestorm ) && \
+	( $(MAKE) force-nextpnr-ICE40 )
+
+.PHONY: force-all-XC7
+force-all-XC7:
+	( $(MAKE) force-prjxray ) && \
+	( $(MAKE) force-prjxray-env ) && \
+	( $(MAKE) force-nextpnr-XC7 )
+
 .PHONY: force-all
 force-all:
 	( $(MAKE) submodules ) && \
@@ -59,13 +75,7 @@ force-all:
 	( $(MAKE) force-torii-boards ) && \
 	( $(MAKE) force-ghdl ) && \
 	( $(MAKE) force-yosys ) && \
-	( $(MAKE) force-prjtrellis ) && \
-	( $(MAKE) force-icestorm ) && \
-	( $(MAKE) force-prjxray ) && \
-	( $(MAKE) force-prjxray-env ) && \
-	( $(MAKE) force-nextpnr-ice40 ) && \
-	( $(MAKE) force-nextpnr-ecp5 ) && \
-	( $(MAKE) force-nextpnr-xc7 ) && \
+	$(foreach A,$(ARCHITECTURES),( $(MAKE) force-all-$(strip $A) ) && )\
 	( $(MAKE) force-coretool ) && \
 	( $(MAKE) force-openFPGALoader ) && \
 	( $(MAKE) install-lakfpga )
